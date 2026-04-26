@@ -116,15 +116,18 @@
     <script src="sprites.js"></script>
     <script>
         // --- 【全局游戏配置】 ---
-        var MAX_ZOMBIES = 60; // 【修改】在这里统一控制总僵尸数，想改关卡长度只改这一个数
-        
+        // 【删除】 var MAX_ZOMBIES = 60; 
+
         var gameStartTime = 0; 
         var zombies = [];
-        var zbIndex = 0;
+        var zbIndex = 0; // 这个可以保留，用于统计总共生成了多少只，或者作为ID
         var plants = [];
         var bullets = [];
         var zbDieNo = 0;
-        
+
+        // 【新增】标记是否所有僵尸已生成完毕
+        var isSpawnFinished = false; 
+
         // 记录上一只僵尸生成的时间，用于控制间隔
         var lastZombieSpawnTime = 0; 
 
@@ -386,8 +389,8 @@
             });
         }
         function addSprite() {  
-            // 【修改】使用全局常量
-            if (zbIndex >= MAX_ZOMBIES) { 
+            // 【修改】如果已经标记为生成完毕，直接返回，不再生成
+            if (isSpawnFinished) { 
                 return;
             }
 
@@ -405,67 +408,80 @@
 
             // --- 【阶段配置】 ---
             var currentStage = "";
-            var spawnInterval = 0; // 生成间隔 (ms)
-            var spawnCount = 1;    // 一次生成几只
-            var zombieTypes = [];  // 允许的僵尸类型权重 [普通, 路障, 铁桶]
+            var spawnInterval = 0; 
+            var spawnCount = 1;    
+            var zombieTypes = [];  
 
-            // 阶段 1: 0-30s (发育期)
+            // 定义最终阶段结束的时间点 (例如 300秒 = 300000毫秒)
+            // 当时间超过这个值，我们就认为“生成完了”
+            var FINAL_STAGE_END_TIME = 300000; 
+
+            // 阶段 1: 0-30s
             if (elapsedTime < 30000) {
-                currentStage = "Stage 1: Development";
-                spawnInterval = 10000; // 10秒一只
+                currentStage = "Stage 1";
+                spawnInterval = 10000; 
                 spawnCount = 1;
-                zombieTypes = [1, 0, 0]; // 100% 普通
+                zombieTypes = [1, 0, 0]; 
             }
-            // 阶段 2: 30s-60s (双生试探期)
+            // 阶段 2: 30s-60s
             else if (elapsedTime < 60000) {
-                currentStage = "Stage 2: Double Spawn";
+                currentStage = "Stage 2";
                 spawnInterval = 8000; 
                 spawnCount = 2;       
                 zombieTypes = [1, 0, 0]; 
             }
-            // 阶段 3: 60s-180s (路障引入期 + 增强, 持续2分钟)
+            // 阶段 3: 60s-180s
             else if (elapsedTime < 180000) {
-                currentStage = "Stage 3: Conehead Enhanced";
-                spawnInterval = 4500; // 【增强】密度提升：从6秒改为4.5秒
-                spawnCount = 1;
-                // 【增强】比例调整：50% 普通, 50% 路障 (之前是6:4)
+                currentStage = "Stage 3";
+                spawnInterval = 4500; 
+                spawnCount = 2;
                 zombieTypes = [5, 5, 0]; 
             }
-            // 阶段 4: 180s-300s (铁桶引入期 + 高密度, 持续2分钟)
+            // 阶段 4: 180s-300s
             else if (elapsedTime < 300000) {
-                currentStage = "Stage 4: Buckethead Rush";
-                spawnInterval = 3500; // 【增强】密度进一步提升：从4秒改为3.5秒
-                spawnCount = 1;
-                // 40% 普通, 35% 路障, 25% 铁桶 (铁桶比例显著提升)
+                currentStage = "Stage 4";
+                spawnInterval = 3500; 
+                spawnCount = 2;
                 zombieTypes = [4, 3.5, 2.5]; 
             }
-            // 阶段 5: 300s+ (终极尸潮, 极高密度)
+            // 【修改】阶段 5: 300s+ 
+            // 原逻辑是无限生成，现在我们需要在这个阶段运行一段时间后停止
             else {
-                currentStage = "Stage 5: HUGE WAVE";
-                spawnInterval = 1200; // 【增强】极限密度：从1.5秒改为1.2秒
-                spawnCount = 1; 
-                // 10% 普通, 40% 路障, 50% 铁桶 (绝大部分是高血量僵尸)
-                zombieTypes = [1, 4, 5]; 
+                // 这里我们可以选择：
+                // 方案 A: 300s 后立即停止生成 (最安全，确保有终点)
+                // 方案 B: 300s-360s 继续高强度生成，然后停止
+                
+                // 这里采用方案 B：最后再冲刺 60 秒
+                if (elapsedTime < 360000) { 
+                    currentStage = "Stage 5: FINAL RUSH";
+                    spawnInterval = 1200; 
+                    spawnCount = 1; 
+                    zombieTypes = [1, 4, 5]; 
+                } else {
+                    // 时间超过 360秒，标记生成完毕
+                    isSpawnFinished = true;
+                    console.log("所有僵尸已生成完毕，等待清理战场...");
+                    return; // 本次调用不再生成
+                }
             }
 
             // --- 【执行生成逻辑】 ---
             if (timeSinceLastSpawn >= spawnInterval) {
                 
+                // 注意：这里不再需要检查 zbIndex >= MAX_ZOMBIES
+                
                 for (var k = 0; k < spawnCount; k++) {
-                    // 【修改】使用全局常量
-                    if (zbIndex >= MAX_ZOMBIES) break;
-
                     // 根据权重随机选择僵尸类型
                     var sumWeights = zombieTypes[0] + zombieTypes[1] + zombieTypes[2];
                     var randomVal = Math.random() * sumWeights;
                     var status = 0; 
                     
                     if (randomVal < zombieTypes[0]) {
-                        status = parseInt(Math.random() * 3); // 普通 (0-2)
+                        status = parseInt(Math.random() * 3); // 普通
                     } else if (randomVal < zombieTypes[0] + zombieTypes[1]) {
-                        status = 3 + parseInt(Math.random() * 2); // 路障 (3-4)
+                        status = 3 + parseInt(Math.random() * 2); // 路障
                     } else {
-                        status = 5; // 铁桶 (5)
+                        status = 5; // 铁桶
                     }
 
                     // 创建僵尸
@@ -475,14 +491,11 @@
                     }, status);
 
                     zombies.push(newZombie);
-                    zbIndex++;
+                    zbIndex++; // 仍然递增，用于唯一标识或统计总数
                 }
 
                 // 重置上次生成时间
                 lastZombieSpawnTime = now;
-                
-                // 控制台调试信息
-                // console.log(currentStage + " | Interval: " + spawnInterval/1000 + "s");
             }
         }
         function spriteStep() {  
@@ -900,15 +913,17 @@
         }
 
         function zombieDie(zombie) {
-            zombies = zombies.filter(item => item != zombie); //将被击死的僵尸从zombies数组中移除
-            container.removeChild(zombie); //将僵尸从container元素中移除
-            zbDieNo++; //增加僵尸死亡数量
+            zombies = zombies.filter(item => item != zombie); 
+            container.removeChild(zombie); 
+            zbDieNo++; 
             
-            // 【核心修改】获胜条件：所有计划僵尸已生成 且 场上无存活僵尸
-            if (zbIndex >= MAX_ZOMBIES && zombies.length === 0) {
-                // 使用 setTimeout 确保 DOM 移除动画完成后再弹窗
+            // 【核心修改】获胜条件：
+            // 1. isSpawnFinished 为 true (所有计划内的僵尸都已生成)
+            // 2. zombies.length === 0 (场上没有存活的僵尸)
+            if (isSpawnFinished && zombies.length === 0) {
+                // 防止重复弹窗，可以加一个锁，或者依靠 location.reload 刷新页面
                 setTimeout(function() {
-                    alert("You Win! 恭喜通关！"); 
+                    alert("You Win! 恭喜通关！所有僵尸已被消灭。"); 
                     location.reload(); 
                 }, 500);
             }
