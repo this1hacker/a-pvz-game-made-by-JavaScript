@@ -23,11 +23,56 @@
             top: 0px;
             left: 0px;
         }
+        /* 【新增】阳光显示区域样式 */
+        #sun-display-area {
+            position: absolute;
+            top: 65px;       /* 在地刺卡片 (top: 60px) 的下方一点 */
+            left: 800px;     /* 保持和地刺卡片一样的左对齐，或者你可以调整到左边 */
+            width: 80px;
+            height: 80px;
+            z-index: 100;
+            pointer-events: none; /* 让点击穿透，不影响游戏操作 */
+        }
+
+        #sun-bg-img {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        #sun-value-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: black;      /* 字体颜色，根据背景图调整，如果是深色背景用白色 */
+            font-size: 20px;
+            font-weight: bold;
+            font-family: Arial, sans-serif;
+        }
+
+        /* 【新增】掉落的阳光样式 */
+        .falling-sun {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            cursor: pointer;
+            z-index: 90;
+            transition: top 3s linear; /* 下落动画 */
+        }
     </style>
 </head>
 
 <body ondragstart="return false;">
     <div id="container">
+        <!-- 【新增】阳光显示区域 -->
+        <div id="sun-display-area">
+            <img id="sun-bg-img" src="images/SunBack.png" alt="Sun Background">
+            <span id="sun-value-text">50</span>
+        </div>
+
         <img id="bg" src="images/Background.jpg">
         <img class="card" onclick="dragPlant(1)" src="plantcard/SunFlower.png">
         <img class="card" onclick="dragPlant(2)" style="left: 100px;" src="plantcard/PeaShooter.png">
@@ -43,6 +88,7 @@
         <img class="card" onclick="dragPlant(12)" style="top: 60px; left: 200px;" src="plantcard/SunFlowerG.png">
         <img class="card" onclick="dragPlant(13)" style="top: 60px; left: 300px;" src="plantcard/Squash.png">
     </div>
+
     <script src="sprites.js">
 
     </script>
@@ -53,18 +99,113 @@
         var zbIndex = 0; //定义一个全局变量zbIndex，用于记录当前僵尸精灵的索引
         var plants = []; //定义一个全局变量plants，用于存储所有的植物精灵
         var bullets = []; //定义一个全局变量bullets，用于存储所有的子弹精灵
+        var zbDieNo = 0; //定义一个全局变量zbDieNo，用于记录僵尸死亡的数量
+        // 【新增】阳光系统变量
+        var sunValue = 50; // 初始阳光值
+        var sunDisplay = document.getElementById('sun-value-text');
 
+        // 【新增】更新阳光显示函数
+        function updateSunDisplay() {
+            if (sunDisplay) {
+                sunDisplay.innerText = sunValue;
+            }
+        }
+
+        // 【新增】创建掉落阳光的函数
+        function createFallingSun() {
+            var sun = document.createElement("img");
+            sun.src = "images/Sun.gif"; // 使用你提供的 Sun.gif
+            sun.className = "falling-sun";
+            
+            // 随机水平位置 (容器宽 900，减去阳光宽 60)
+            var randomLeft = Math.floor(Math.random() * (900 - 60));
+            sun.style.left = randomLeft + "px";
+            sun.style.top = "-60px"; // 从屏幕上方开始
+            
+            // 添加到 container 中，这样它会随页面滚动（如果有）且层级正确
+            container.appendChild(sun);
+
+            // 触发下落动画 (稍微延迟以确保 CSS transition 生效)
+            setTimeout(function() {
+                // 随机落点高度 (在草坪区域内，大约 150px 到 550px 之间)
+                var randomTop = Math.floor(Math.random() * (550 - 150) + 150);
+                sun.style.top = randomTop + "px";
+            }, 50);
+
+            // 点击事件：收集阳光
+            sun.onclick = function() {
+                sunValue += 25; // 每个阳光加 25 分
+                updateSunDisplay();
+                
+                // 收集动画：飞向左上角的阳光显示区
+                // 获取阳光显示区的位置
+                var displayArea = document.getElementById('sun-display-area');
+                var rect = displayArea.getBoundingClientRect();
+                var containerRect = container.getBoundingClientRect();
+                
+                // 计算相对于 container 的目标位置
+                var targetLeft = rect.left - containerRect.left + 10;
+                var targetTop = rect.top - containerRect.top + 10;
+
+                sun.style.transition = "all 0.5s ease-in";
+                sun.style.left = targetLeft + "px";
+                sun.style.top = targetTop + "px";
+                sun.style.opacity = "0"; // 逐渐消失
+
+                // 动画结束后移除元素
+                setTimeout(function() {
+                    if (sun.parentNode) {
+                        sun.parentNode.removeChild(sun);
+                    }
+                }, 500);
+            };
+
+            // 如果 8 秒内没被点击，自动消失
+            setTimeout(function() {
+                if (sun.parentNode && sun.style.opacity !== "0") {
+                    sun.style.opacity = "0";
+                    setTimeout(function() {
+                        if (sun.parentNode) sun.parentNode.removeChild(sun);
+                    }, 500);
+                }
+            }, 8000);
+        }
+
+        // 【新增】启动自然阳光掉落定时器
+        function startNaturalSun() {
+            // 每 10 秒掉落一个阳光
+            setInterval(createFallingSun, 10000);
+            
+            // 游戏开始时先掉一个，避免等待太久
+            setTimeout(createFallingSun, 2000);
+        }
         function shoot(plant) {  //定义一个shoot函数，用于处理植物的射击事件，参数plant表示射击的植物精灵
             for (var zombie of zombies) { //遍历zombies数组中的每个僵尸精灵
                 if (zombie.offsetLeft > plant.offsetLeft - 70 && //判断僵尸是否在植物的射程范围内
                     zombie.route == plant.route) { //判断僵尸是否与植物在同一行
+                    
+                    // 发射第一颗子弹
                     bullets.push(creatdBullet(plant, bullet => {
-                        bullets = bullets.filter(item => item != bullet); //将被击中的子弹从bullets数组中移除
-                        container.removeChild(bullet); //将子弹从container元素中移除
+                        bullets = bullets.filter(item => item != bullet);
+                        container.removeChild(bullet);
                     }));
-                    break; //
-                }
 
+                    // 如果是双发射手 (type 4)，发射第二颗子弹
+                    if (plant.type == 4) {
+                        // 使用 setTimeout 稍微延迟发射第二颗子弹，产生连发效果
+                        setTimeout(() => {
+                            // 检查植物是否还存在，防止植物在延迟期间被吃掉导致报错
+                            if (plant.parentNode) {
+                                bullets.push(creatdBullet(plant, bullet => {
+                                    bullets = bullets.filter(item => item != bullet);
+                                    container.removeChild(bullet);
+                                }));
+                            }
+                        }, 150); // 延迟150毫秒发射第二颗
+                    }
+                    
+                    break; 
+                }
             }
         }
 
@@ -82,6 +223,8 @@
             isBack = document.visibilityState != 'visible';
         }
         window.onload = function () {
+            updateSunDisplay(); // 初始化显示
+            startNaturalSun();  // 【新增】启动自然阳光
             setInterval(() => {
                 if (!window.isBack){
                     addSprite(); //每隔100/8毫秒调用一次addSprite函数，添加一个新的僵尸精灵
@@ -97,7 +240,10 @@
                 }
                 counter++; //每次调用step方法时，将counter属性加1
                 if (parseInt(counter / duration) >= zbIndex) {  //当counter除以duration的整数部分大于等于zbIndex时，说明已经到了添加下一个僵尸精灵的时间
-                    zombies.push(createZombie(zbIndex)); //调用createZombie函数创建一个新的僵尸精灵，并将其添加到zombies数组中
+                    zombies.push(createZombie(zbIndex, ()=> {
+                        alert("Game Over!"); //当僵尸精灵到达左边界时，弹出一个提示框，显示"Game Over!"，表示游戏结束
+                        location.reload(); //重新加载页面，重置游戏状态
+                    })); //调用createZombie函数创建一个新的僵尸精灵，并将其添加到zombies数组中
                     if (zbIndex == 2) { //如果当前是第二个僵尸精灵
                         duration = 100
                         counter = duration * zbIndex; //将counter重置为duration乘以zbIndex，以便下一个僵尸精灵的添加时间正确计算    
@@ -123,76 +269,215 @@
                     bullet.step(); //调用每个子弹精灵的step方法，更新其位置和状态
                 }
             }
-            function onHitting() {  //定义一个onHitting函数，用于处理精灵被击中的情况
-                for (var bullet of bullets) { //遍历bullets数组中的每个子弹精灵
-                    if (hitZombie(bullet)){ //判断子弹是否击中僵尸
-                        bullet.src = "images/BulletHit.gif"; //如果子弹击中僵尸，将子弹的图片源更改为BulletHit.gif，显示击中效果
-
+            // 在 04-pvz.html 的 <script> 标签内，替换原有的 onHitting 函数
+            function onHitting() {
+                // 1. 先处理所有子弹的飞行和碰撞检测
+                for (var i = bullets.length - 1; i >= 0; i--) {
+                    var bullet = bullets[i];
+                    if (bullet.src.endsWith("BulletHit.gif")) {
+                        continue;
+                    }
+                    
+                    if (hitZombie(bullet)) {
+                        bullet.src = "images/BulletHit.gif";
                     }
                 }
-                for (var zombie of zombies){
-                    var plant = eatPlantBy(zombie);
-                    if (plant && zombie.src.endsWith("Zombie.gif")){ // 判断是否被吃掉
-                        zombie.src = "images/ZombieAttack.gif"; //如果僵尸正在吃植物，将僵尸的图片源更改为ZombieAttack.gif，显示吃植物的效果
-                        plant.attack.push(zombie) //将僵尸的id添加到植物的attack数组中，表示该植物正在被这个僵尸攻击
-                    } else if (plant && plant.blood <= 0) {
-                        if (plant.timer) clearInterval(plant.timer); //如果植物有timer属性，说明植物正在射击，调用clearInterval函数停止植物的射击定时器
-                        plants.splice(plant.index, 1); //如果植物的血量小于等于0，说明植物被吃死了，将植物从plants数组中移除
-                        container.removeChild(plant); //将植物从container元素中移除
-                        for (var zz of plant.attack) {
-                            if (zz && zz.blood > 0) {
-                                zz.src = "images/Zombie.gif"; //将正在攻击该植物的僵尸的图片源更改为Zombie.gif，显示正常行走的效果
-                            }
 
+                // 2. 再处理僵尸吃植物的逻辑
+                for (var j = zombies.length - 1; j >= 0; j--) {
+                    var zombie = zombies[j];
+                    
+                    if (zombie.src.includes("Die") || zombie.src.includes("LostHead")) {
+                        continue;
+                    }
+
+                    var plant = eatPlantBy(zombie);
+                    
+                    if (plant) {
+                        if (zombie.blood > 0) {
+                            // --- 僵尸攻击图片逻辑 ---
+                            if (zombie.blood <= 10) {
+                                if (!zombie.src.includes("Attack")) zombie.src = "images/ZombieAttack.gif";
+                            } else if (zombie.status == 5) {
+                                if (!zombie.src.includes("Attack")) zombie.src = "images/BucketheadZombieAttack.gif";
+                            } else {
+                                if (!zombie.src.includes("Attack")) zombie.src = "images/ConeheadZombieAttack.gif";
+                            }
+                            
+                            if (!plant.attack.includes(zombie)) {
+                                plant.attack.push(zombie);
+                            }
+                            
+                            // 扣植物血
+                            plant.blood--;
+                            
+                            // --- 【最终修复】坚果墙受伤变图逻辑 (基于固定血量) ---
+                            if (plant.type == 7) {
+                                var currentStage = plant.damageStage;
+                                var newStage = 0;
+                                var targetImg = "images/WallNut.gif";
+
+                                // 根据固定血量阈值判断阶段
+                                if (plant.blood < 1000) {
+                                    newStage = 2;
+                                    targetImg = "images/WallNut_cracked2.gif";
+                                } else if (plant.blood < 2000) {
+                                    newStage = 1;
+                                    targetImg = "images/WallNut_cracked1.gif";
+                                } else {
+                                    newStage = 0;
+                                    targetImg = "images/WallNut.gif";
+                                }
+
+                                // 只有当阶段发生改变时，才更新图片和状态
+                                // 这避免了每帧重置 src 导致的 GIF 动画卡死
+                                if (currentStage !== newStage) {
+                                    plant.src = targetImg;
+                                    plant.damageStage = newStage;
+                                }
+                            }
+                            // ----------------------------------
+
+                            // 检查植物是否死亡
+                            if (plant.blood <= 0) {
+                                if (plant.timer) clearInterval(plant.timer);
+                                
+                                var pIndex = plants.indexOf(plant);
+                                if (pIndex > -1) {
+                                    plants.splice(pIndex, 1);
+                                }
+                                container.removeChild(plant);
+                                
+                                for (var zz of plant.attack) {
+                                    if (zz && zz.blood > 0) {
+                                        if (zz.blood <= 10) {
+                                            zz.src = "images/Zombie.gif";
+                                        } else if (zz.status == 5) {
+                                            zz.src = "images/BucketheadZombie.gif";
+                                        } else if (zz.status == 3 || zz.status == 4) {
+                                            zz.src = "images/ConeheadZombie.gif";
+                                        }
+                                        zz.style.filter = "none";
+                                        zz.speed = 5; 
+                                    }
+                                }
+                            }
                         }
-                    } else if (plant) {
-                        plant.blood--; //如果植物的血量大于0，说明植物正在被攻击，将植物的血量减1
                     }
                 }
             }
             function eatPlantBy(zombie) {
-            for (var i in plants) {
-                var plant = plants[i];
-                if (plant.offsetLeft - 40 > zombie.offsetLeft &&
-                plant.offsetLeft - 100 < zombie.offsetLeft &&
-                plant.route == zombie.route) { //判断僵尸是否在植物的范围内，并且与植物在同一行
-                plant.index = i; // 记录所在下标
-                return plant;
-                }
-            }
-            return null; //返回null，表示没有找到被僵尸吃掉的植物
-            }
-
-            function hitZombie(bullet) {  //定义一个hitZombie函数，用于判断子弹是否击中僵尸
-                for (var zombie of zombies) { //遍历zombies数组中的每个僵尸精灵
-                    if (bullet.offsetLeft - 70 > zombie.offsetLeft &&
-                        bullet.offsetLeft - 140< zombie.offsetLeft &&
-                        bullet.route == zombie.route) { //判断子弹是否在僵尸的范围内，并且与僵尸在同一行
-                        zombie.blood--; //如果子弹击中僵尸，将僵尸的血量减1
-                        if (zombie.blood == 0) {
-                            var head = creatdHead(zombie); //如果僵尸的血量为0，说明僵尸被击死了，调用creatdHead函数创建一个头部精灵，并将其赋值给变量head
-                            zombie.src = "images/ZombieLostHead.gif"; //将僵尸的图片源更改为ZombieLostHead.gif，显示僵尸被击死的效果
-                            setTimeout(() => {
-                                zombie.src = "images/ZombieDie.gif"; //设置一个定时器，1秒后将僵尸的图片源更改为ZombieDie.gif，显示僵尸死亡的效果
-                                container.removeChild(head); //将头部精灵从container元素中移除
-                            }, 1000)
-                            setTimeout(() => {
-                                zombies = zombies.filter(item => item != zombie); //将被击死的僵尸从zombies数组中移除
-                                container.removeChild(zombie); //设置一个定时器，2秒后将僵尸从container元素中移除
-                            }, 2000)
-                        } else {
-                            zombie.style.opacity = 0.7; //如果僵尸的血量不为0，说明僵尸受到了伤害，将僵尸的透明度设置为0.5，显示受伤效果
-                            setTimeout(() => {
-                                zombie.style.opacity = 1;
-                            }, 100) //设置一个定时器，1秒后将僵尸的透明度恢复为1，显示正常效果
-
-                        }
-                        return true; //返回true，表示子弹击中了一个僵尸
+                for (var i in plants) {
+                    var plant = plants[i];
+                    if (plant.offsetLeft - 40 > zombie.offsetLeft &&
+                    plant.offsetLeft - 100 < zombie.offsetLeft &&
+                    plant.route == zombie.route) { //判断僵尸是否在植物的范围内，并且与植物在同一行
+                    plant.index = i; // 记录所在下标
+                    return plant;
                     }
-                    
                 }
-                return false; //返回false，表示子弹没有击中任何僵尸
+                return null; //返回null，表示没有找到被僵尸吃掉的植物
             }
+
+            // 在 04-pvz.html 的 <script> 标签内，替换原有的 hitZombie 函数
+
+            function hitZombie(bullet) {
+                for (var zombie of zombies) {
+                    // 忽略已经死亡或正在死亡的僵尸
+                    if (zombie.src.includes("Die") || zombie.src.includes("LostHead")) {
+                        continue;
+                    }
+
+                    // 碰撞检测
+                    if (bullet.offsetLeft - 70 > zombie.offsetLeft &&
+                        bullet.offsetLeft - 140 < zombie.offsetLeft &&
+                        bullet.route == zombie.route) {
+                        
+                        // 击中僵尸，扣血
+                        zombie.blood--;
+                        
+                        // --- 【修改】处理掉帽子/路障逻辑 ---
+                        // 如果血量降到10或以下，且原本是特殊僵尸（路障或铁桶）
+                        if (zombie.blood <= 10 && zombie.status != 0 && zombie.status != 1 && zombie.status != 2) {
+                            // 1. 改变状态为普通僵尸 (status 0-2 都是普通僵尸，这里统一设为0)
+                            zombie.status = 0; 
+                            
+                            // 2. 判断当前是否正在攻击植物，以决定显示哪张普通僵尸图片
+                            var isAttacking = false;
+                            // 简单判断：如果图片包含 "Attack"，说明刚才正在吃东西
+                            if (zombie.src.includes("Attack")) {
+                                isAttacking = true;
+                            }
+                            
+                            // 3. 切换为普通僵尸图片
+                            if (isAttacking) {
+                                zombie.src = "images/ZombieAttack.gif";
+                            } else {
+                                zombie.src = "images/Zombie.gif";
+                            }
+                            
+                            // 【删除】此处不再清除 filter 和重置 speed，保留冰冻状态
+                            // zombie.style.filter = "none"; 
+                            // zombie.speed = 5; 
+                        }
+                        // ----------------------------------
+
+                        // 处理冰冻豌豆效果
+                        // 注意：这段代码在掉帽子逻辑之后执行。
+                        // 如果子弹是冰豌豆 (type 3)，无论是否刚掉帽子，都会应用冰冻效果。
+                        // 如果子弹不是冰豌豆，则不会干扰现有的冰冻状态（因为上面删除了清除逻辑）。
+                        if (bullet.type == 3 && zombie.blood > 0) {
+                            zombie.speed = 10; // 减速
+                            zombie.style.filter = "brightness(0.6) hue-rotate(180deg) saturate(1.5)";
+                        }
+
+                        // 处理僵尸死亡
+                        if (zombie.blood <= 0) {
+                            var head = creatdHead(zombie);
+                            
+                            // 根据僵尸当前类型设置死亡前的无头图片
+                            if (zombie.src.includes("Attack")) {
+                                zombie.src = "images/ZombieLostHeadAttack.gif";
+                            } else {
+                                zombie.src = "images/ZombieLostHead.gif";
+                            }
+                            
+                            setTimeout(() => {
+                                if(zombie.parentNode) {
+                                    zombie.src = "images/ZombieDie.gif";
+                                    if(head.parentNode) container.removeChild(head);
+                                }
+                            }, 1000);
+                            
+                            setTimeout(() => {
+                                zombieDie(zombie);
+                            }, 2000);
+                            
+                            return true; // 击中并导致死亡
+                        } 
+                        else {
+                            // 僵尸未死，显示受伤闪烁效果
+                            zombie.style.opacity = 0.7;
+                            setTimeout(() => {
+                                if(zombie.parentNode) zombie.style.opacity = 1;
+                            }, 100);
+                        }
+                        
+                        return true; // 击中
+                    }
+                }
+                return false;
+            }
+            function zombieDie(zombie) {
+                zombies = zombies.filter(item => item != zombie); //将被击死的僵尸从zombies数组中移除
+                container.removeChild(zombie); //将僵尸从container元素中移除
+                zbDieNo++; //增加僵尸死亡数量
+                if (zbDieNo > 20){
+                    alert("You Win!"); //当僵尸死亡的数量大于20时，弹出一个提示框，显示"You Win!"，表示游戏胜利
+                    location.reload(); //重新加载页面，重置游戏状态
+                }
+            }
+            
     </script>
 </body>
 

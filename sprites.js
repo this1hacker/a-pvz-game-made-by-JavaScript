@@ -1,152 +1,295 @@
+// sprites.js
+
 var container = document.getElementById('container');
+
+// --- 网格配置参数 (来自 untitled.js) ---
+var GLOBAL_OFFSET_X = 50; 
+var START_X = 45 + GLOBAL_OFFSET_X; // 95
+var GRID_ROWS = 5;
+var GRID_COLS = 9;
+var CELL_WIDTH = 80;                
+var CELL_HEIGHT = 100;              
+
+// 【视觉修正】植物行坐标，确保与背景图草坪对齐
+// 对应原逻辑: 210, 310, 410, 510, 610
+var ROW_TOPS = [210, 310, 410, 510, 610];
+
+// 用于记录网格占用状态 (防止重叠)
+// 注意：这个变量需要在游戏初始化时重置，或者在这里定义全局变量
+if (typeof window.gridState === 'undefined') {
+    window.gridState = [];
+    for (var i = 0; i < GRID_ROWS; i++) {
+        window.gridState[i] = new Array(GRID_COLS).fill(null);
+    }
+}
+
+/**
+ * 核心函数：将任意坐标吸附到最近的网格中心
+ */
+function snapToGrid(x, y) {
+    var row = -1;
+    // 判断行：允许上下 50px 的误差范围来捕捉鼠标所在的行
+    for (var r = 0; r < GRID_ROWS; r++) {
+        if (y >= ROW_TOPS[r] - 50 && y <= ROW_TOPS[r] + 50) {
+            row = r;
+            break;
+        }
+    }
+
+    var col = -1;
+    if (row !== -1) {
+        // 计算列
+        col = Math.floor((x - START_X) / CELL_WIDTH);
+        // 边界限制
+        if (col < 0) col = 0;
+        if (col >= GRID_COLS) col = GRID_COLS - 1;
+    }
+
+    var plantWidthHalf = 40; // 假设植物图片宽度约为 80px，居中需要减去一半
+    var finalLeft = -1;
+    var finalTop = -1;
+
+    if (row !== -1 && col !== -1) {
+        // 计算网格中心的 left 值
+        finalLeft = START_X + col * CELL_WIDTH + (CELL_WIDTH / 2) - plantWidthHalf;
+        finalTop = ROW_TOPS[row]; 
+    }
+
+    return {
+        left: finalLeft,
+        top: finalTop,
+        row: row,
+        col: col,
+        valid: (row !== -1)
+    };
+}
+
 function createPlant(type, onclick){
-    var plant = document.createElement("img"); //创建一个img元素
-    plant.type = type; //为img元素添加一个type属性，值为传入的type参数
-    plant.attack = []; //为img元素添加一个attack属性，值为一个空数组
-    if (type == 1) { //根据传入的type参数设置img元素的src属性
+    var plant = document.createElement("img"); 
+    plant.type = type; 
+    plant.attack = []; 
+    
+    // 设置初始属性和图片
+    if (type == 1) { 
         plant.src = "images/SunFlower.gif";
-        plant.blood = 500; //为img元素添加一个blood属性，值为500
+        plant.blood = 500; 
     } else if (type == 2) {
         plant.src = "images/PeaShooter.gif";
-        plant.blood = 500; //为img元素添加一个blood属性，值为500
+        plant.blood = 500; 
     } else if (type == 3) {
         plant.src = "images/SnowPea.gif";
-        plant.blood = 500; //为img元素添加一个blood属性，值为500
+        plant.blood = 500; 
     } else if (type == 4) {
         plant.src = "images/Repeater.gif";
-        plant.blood = 500; //为img元素添加一个blood属性，值为500
+        plant.blood = 500; 
     } else if (type == 5) {
         plant.src = "images/CherryBomb.gif";
-        plant.blood = 500; //为img元素添加一个blood属性，值为500
+        plant.blood = 500; 
     } else if (type == 6) {
         plant.src = "images/Chomper.gif";
-        plant.blood = 500; //为img元素添加一个blood属性，值为500
+        plant.blood = 500; 
     } else if (type == 7) {
         plant.src = "images/WallNut.gif";
-        plant.blood = 3000; //为img元素添加一个blood属性，值为3000
+        plant.blood = 3000; 
+        plant.maxBlood = 3000;
+        plant.damageStage = 0; 
     } else if (type == 8) {
         plant.src = "images/Garlic.gif";
-        plant.blood = 500; //为img元素添加一个blood属性，值为500
+        plant.blood = 500; 
     } else if (type == 9) {
         plant.src = "images/Torchwood.gif";
-        plant.blood = 500; //为img元素添加一个blood属性，值为500
+        plant.blood = 500; 
     } else if (type == 10) {
         plant.src = "images/Spikeweed.gif";
-        plant.blood = 500; //为img元素添加一个blood属性，值为500
+        plant.blood = 500; 
     } else if (type == 11) {
         plant.src = "images/TwinSunflower.gif";
-        plant.blood = 500; //为img元素添加一个blood属性，值为500
+        plant.blood = 500; 
     } else if (type == 12) {
         plant.src = "images/SunFlowerG.gif";
-        plant.blood = 500; //为img元素添加一个blood属性，值为500
+        plant.blood = 500; 
     } else if (type == 13) {
         plant.src = "images/Squash.gif";
-        plant.blood = 500; //为img元素添加一个blood属性，值为500
+        plant.blood = 500; 
     }
-    plant.style.position = "absolute"; //设置img元素的position属性为absolute
-    document.oncontextmenu = function(event){
-        event.preventDefault(); //阻止默认的右键菜单弹出
-    }
-    document.onmousemove = function(event){ //为document对象添加一个mousemove事件监听器，当鼠标移动时执行以下代码
-        plant.style.left = event.clientX - 40 + "px"; //将img元素的left属性设置为鼠标的x坐标减去50像素
-        plant.style.top = event.clientY - 40 + "px"; //将img元素的top属性设置为鼠标的y坐标减去50像素
-    }
-    document.onmousedown = function(event){ 
-        document.onmousemove = null; //取消鼠标移动事件监听器
-        document.onmousedown = null; //取消鼠标按下事件监听器
 
-        if (event.button == 2) { //如果鼠标按下的是右键
-            container.removeChild(plant); //将img元素从container元素中移除
-        } else if (event.button == 0) { //如果鼠标按下的是左键
-            var top = plant.offsetTop;
-            if (top < 120 || top > 615){
-                container.removeChild(plant); //如果img元素的top属性小于0或大于615，则将其从container元素中移除
+    plant.style.position = "absolute"; 
+    plant.style.zIndex = 10; 
+    plant.style.display = 'none'; // 初始隐藏，直到鼠标移动
+    
+    document.oncontextmenu = function(event){
+        event.preventDefault(); 
+    }
+
+    // --- 鼠标移动：预览位置 ---
+    document.onmousemove = function(event){ 
+        plant.style.display = 'block';
+
+        var rect = container.getBoundingClientRect();
+        var x = event.clientX - rect.left;
+        var y = event.clientY - rect.top;
+
+        var pos = snapToGrid(x, y);
+
+        if (pos.valid) {
+            plant.style.left = pos.left + "px";
+            plant.style.top = pos.top + "px";
+            
+            // 视觉反馈：如果该格子已被占用，显示半透明
+            if (window.gridState[pos.row][pos.col]) {
+                plant.style.opacity = 0.5;
+                plant.style.cursor = "no-drop";
+            } else {
+                plant.style.opacity = 1;
+                plant.style.cursor = "pointer";
             }
-            // 处理边界 (原基准 + 120px)
-            // 原: 90, 190, 290, 390, 490
-            // 新: 210, 310, 410, 510, 610
-            if (top >= 120 && top <= 215) {
-                plant.style.top = '210px';
-                plant.route = 0; //为img元素添加一个route属性，值为0
-            } else if (top > 215 && top <= 315) {
-                plant.route = 1;
-                plant.style.top = '310px';
-            } else if (top > 315 && top <= 415) {
-                plant.route = 2;
-                plant.style.top = '410px';
-            } else if (top > 415 && top <= 515) {
-                plant.route = 3;
-                plant.style.top = '510px';
-            } else if (top > 515 && top <= 615) {
-                plant.route = 4;
-                plant.style.top = '610px';
-            }
-            onclick(plant); //调用传入的onclick函数，并将img元素作为参数传入
+        } else {
+            // 无效区域
+            plant.style.left = (x - 40) + "px";
+            plant.style.top = (y - 40) + "px";
+            plant.style.opacity = 0.5;
+            plant.style.cursor = "no-drop";
         }
     }
-    container.appendChild(plant); //将img元素添加到container元素中
-    return plant; //返回创建的img元素
+
+    // --- 鼠标按下：确定放置 ---
+        document.onmousedown = function(event){ 
+        document.onmousemove = null; 
+        document.onmousedown = null;
+
+        var rect = container.getBoundingClientRect();
+        var x = event.clientX - rect.left;
+        var y = event.clientY - rect.top;
+        
+        var pos = snapToGrid(x, y);
+
+        if (event.button == 2) { // 右键取消
+            if(plant.parentNode) container.removeChild(plant); 
+        } else if (event.button == 0) { // 左键放置
+            
+            if (!pos.valid) {
+                if(plant.parentNode) container.removeChild(plant);
+                return;
+            }
+
+            // 检查该格子是否已被占用
+            if (window.gridState[pos.row][pos.col]) {
+                if(plant.parentNode) container.removeChild(plant);
+                return;
+            }
+
+            // 正式放置
+            plant.style.left = pos.left + "px";
+            plant.style.top = pos.top + "px";
+            plant.style.opacity = 1; 
+            plant.style.cursor = "default";
+            plant.style.display = 'block';
+
+            // 记录植物所在的行列信息
+            plant.route = pos.row; // 用于子弹和僵尸的行判断
+            plant.col = pos.col;   // 用于网格管理
+
+            // 更新网格状态
+            window.gridState[pos.row][pos.col] = plant;
+            
+            // 调用回调函数 (例如开始射击定时器)
+            if (onclick) onclick(plant);
+        }
+    }
+    
+    container.appendChild(plant); 
+    return plant; 
 }
+
 function creatdBullet(plant, disappear){
     var bullet = document.createElement("img");
-    bullet.type = plant.type; //为子弹添加一个type属性，值为植物的type属性
-    bullet.route = plant.route; //为子弹添加一个route属性，值为植物的route属性
-    if (bullet.type == 2) { //根据子弹的type属性设置src属性
-        bullet.src = "images/Bullet.gif"; //豌豆射手的子弹
+    bullet.type = plant.type; 
+    bullet.route = plant.route; // 继承植物的行号
+    
+    if (bullet.type == 2) { 
+        bullet.src = "images/Bullet.gif"; 
     } else if (bullet.type == 3) {
-        bullet.src = "images/SnowBullet.gif"; //冰豌豆射手的子弹
+        bullet.src = "images/SnowBullet.gif"; 
     } else if (bullet.type == 4) {
-        bullet.src = "images/Bullet.gif"; //双发射手子弹
+        bullet.src = "images/Bullet.gif"; 
     }
+    
     bullet.style.position = "absolute";
-    bullet.style.left = plant.offsetLeft + 30 + "px"; //将子弹的left属性设置为植物的offsetLeft属性加30像素，使子弹从植物的前面发出
-    bullet.style.top = plant.offsetTop + "px"; //将子弹的top属性设置为植物的offsetTop属性，使子弹从植物的中间发出
-    bullet.step = function(){ //为子弹添加一个step方法，用于更新子弹的位置
+    bullet.style.left = plant.offsetLeft + 30 + "px"; 
+    bullet.style.top = plant.offsetTop + "px"; 
+    
+    bullet.step = function(){ 
         if (bullet.src.endsWith("Bullet.gif") && 
-            bullet.offsetLeft < 1000) { //如果子弹的src属性以"Bullet.gif"结尾且未到达边界
-            bullet.style.left = bullet.offsetLeft + 5 + "px"; //将子弹的left属性增加5像素，使子弹向右移动
-        } else { //子弹碎片或到达边界
-            disappear(bullet); //调用disappear函数，使子弹消失
+            bullet.offsetLeft < 1000) { 
+            bullet.style.left = bullet.offsetLeft + 5 + "px"; 
+        } else { 
+            if(disappear) disappear(bullet); 
         }
-        
     };
-    container.appendChild(bullet); //将子弹添加到container元素中
-    return bullet; //返回创建的子弹精灵
+    
+    container.appendChild(bullet); 
+    return bullet; 
 }
-function createZombie(id) {
+
+function createZombie(id, gameover){ 
     var zombie = document.createElement("img"); 
     zombie.id = id; 
-    zombie.src = "images/Zombie.gif"; 
-    zombie.blood = 10; 
+    zombie.status = parseInt(Math.random() * 6); 
+    
+    if ([0, 1, 2].indexOf(zombie.status) != -1){ 
+        zombie.src = "images/Zombie.gif"; 
+        zombie.blood = 10; 
+    } else if ([3, 4].indexOf(zombie.status) != -1){  
+        zombie.src = "images/ConeheadZombie.gif"; 
+        zombie.blood = 25; 
+    } else if (zombie.status == 5){ 
+        zombie.src = "images/BucketheadZombie.gif"; 
+        zombie.blood = 55; 
+    }
+    
     zombie.style.position = "absolute"; 
     zombie.route = parseInt(Math.random() * 5); 
     
-    // 原基准数组: [30, 130, 230, 330, 430]
-    // 下移120px后: [150, 250, 350, 450, 550]
+    // 【保持原样】僵尸行坐标 (150, 250...)
+    // 注意：僵尸Y坐标(150+)与植物Y坐标(210+)有垂直偏差，这是为了配合背景图
     zombie.style.top = [150, 250, 350, 450, 550][zombie.route] + "px"; 
     
     zombie.style.left = "850px"; 
     zombie.counter = 0; 
+    zombie.speed = 6;
+    
     zombie.step = function(){
-        zombie.counter++; 
-        if (zombie.counter < 5) {  
-            return
-        }
-        zombie.counter = 0; //每5次调用step方法，僵尸移动一次
-        if((zombie.src.endsWith("Zombie.gif") && zombie.offsetLeft > -200)){ 
-            zombie.style.left = zombie.offsetLeft - 1 + "px"; 
-        } //如果僵尸的src属性以"Zombie.gif"结尾且未到达边界，或者僵尸的src属性为"images/ZombieLostHead.gif"，则将僵尸的left属性减少1像素，使僵尸向左移动
+    zombie.counter++; 
+    if (zombie.counter < zombie.speed) {
+        return
+    }
+    zombie.counter = 0; 
         
+    // 【修复】只有当僵尸处于“行走”状态时才移动
+    // 排除包含 "Attack"、"Die"、"LostHead" 的状态
+    var isWalking = zombie.src.endsWith("Zombie.gif") && 
+                    !zombie.src.includes("Attack") && 
+                    !zombie.src.includes("Die") && 
+                    !zombie.src.includes("LostHead");
+
+    if (isWalking && zombie.offsetLeft > -200) { 
+        zombie.style.left = zombie.offsetLeft - 1 + "px"; 
+    } 
+        
+    if (zombie.offsetLeft < -150){ 
+        if(gameover) gameover();
+    }
     }
     container.appendChild(zombie); 
     return zombie; 
 }
-function creatdHead(zombie){ //创建僵尸头部精灵
+
+function creatdHead(zombie){ 
     var head = document.createElement("img");
-    head.src = "images/ZombieHead.gif"; //设置头部精灵的图片来源
-    head.style.position = "absolute"; //设置头部精灵的定位方式为绝对定位
-    head.style.left = zombie.offsetLeft + 50 + "px"; //将头部精灵的left属性设置为僵尸的offsetLeft属性，使头部与僵尸保持水平对齐
-    head.style.top = zombie.offsetTop + "px"; //将头部精灵的top属性设置为僵尸的offsetTop属性，使头部与僵尸保持垂直对齐
-    container.appendChild(head); //将头部精灵添加到container元素中
-    return head; //返回创建的头部精灵
+    head.src = "images/ZombieHead.gif"; 
+    head.style.position = "absolute"; 
+    head.style.left = zombie.offsetLeft + 50 + "px"; 
+    head.style.top = zombie.offsetTop + "px"; 
+    container.appendChild(head); 
+    return head; 
 }
