@@ -587,6 +587,13 @@
                             if (pIndex > -1) {
                                 plants.splice(pIndex, 1);
                             }
+                            
+                            // 【核心修复】在移除 DOM 前，先清除网格占用状态
+                            // 确保其他植物可以种在这个位置
+                            if (plant.route !== undefined && plant.col !== undefined) {
+                                window.gridState[plant.route][plant.col] = null;
+                            }
+
                             container.removeChild(plant);
 
                             // 【重要修复】植物死亡后，僵尸恢复行走状态
@@ -601,12 +608,7 @@
                                         zz.src = "images/ConeheadZombie.gif";
                                     }
                                     
-                                    // 【删除】以下两行代码会破坏冰冻效果，必须删除！
-                                    // zz.style.filter = "none"; 
-                                    // zz.speed = 5; 
-                                    
                                     // 【新增】如果僵尸当前没有被冰冻，才恢复基础速度
-                                    // 如果被冰冻，spriteStep 会在计时结束后自动恢复，这里不要干扰
                                     if (!zz.isFrozen) {
                                         zz.speed = zz.baseSpeed; // 恢复为基础速度 6
                                         zz.style.filter = "none";
