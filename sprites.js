@@ -196,7 +196,34 @@ function createPlant(type, onclick){
             if (onclick) onclick(plant);
         }
     }
-    
+     // 【修改】向日葵产阳光逻辑
+    if (type == 1 || type == 11) {
+        // 统一间隔为 10秒 (10000ms)
+        var interval = 10000;
+        
+        plant.sunTimer = setInterval(function() {
+            // 检查植物是否还存在于页面中
+            if (!plant.parentNode) {
+                clearInterval(plant.sunTimer);
+                return;
+            }
+
+            // 普通向日葵(type 1)产生 1 个阳光
+            produceSunFromPlant(plant);
+
+            // 双子向日葵(type 11)额外再产生 1 个阳光 (总共2个)
+            if (type == 11) {
+                // 稍微延迟 200ms 产生第二个阳光，避免完全重叠，视觉效果更好
+                setTimeout(function() {
+                    if (plant.parentNode) {
+                        produceSunFromPlant(plant);
+                    }
+                }, 200);
+            }
+
+        }, interval);
+    }
+
     container.appendChild(plant); 
     return plant; 
 }
@@ -298,4 +325,75 @@ function creatdHead(zombie){
     head.style.top = zombie.offsetTop + "px"; 
     container.appendChild(head); 
     return head; 
+}
+
+// 【新增】处理植物产生阳光的函数
+function produceSunFromPlant(plant) {
+    var sun = document.createElement("img");
+    sun.src = "images/Sun.gif";
+    sun.className = "falling-sun"; // 复用样式
+    
+    // 初始位置：植物中心上方
+    var startLeft = plant.offsetLeft + 10; // 微调居中
+    var startTop = plant.offsetTop - 10;   // 植物上方
+    
+    sun.style.left = startLeft + "px";
+    sun.style.top = startTop + "px";
+    
+    // 插入到 container 中
+    container.appendChild(sun);
+
+    // 1. 先向上浮动一小段距离，模拟“产出”
+    setTimeout(function() {
+        sun.style.top = (startTop - 40) + "px";
+    }, 50);
+
+    // 2. 短暂停留后，飞向阳光计数器
+    setTimeout(function() {
+        collectSunAutomatically(sun);
+    }, 1000);
+}
+
+// 【新增】自动收集阳光（飞向计数器并加分）
+function collectSunAutomatically(sunElement) {
+    if (!sunElement.parentNode) return;
+
+    // 计算目标位置（阳光计数器相对于 container 的坐标）
+    // 注意：sunValue 和 updateSunDisplay 定义在 04-pvz.html 的全局作用域中
+    // 这里我们需要计算飞行的终点坐标
+    
+    var halfWidth = window.innerWidth / 2;
+    var halfHeight = window.innerHeight / 2;
+    
+    // 目标相对于视口 (Viewport) 的坐标 (与 HTML 中 fixed 定位一致)
+    var targetViewportLeft = halfWidth - 450 + 10; 
+    var targetViewportTop = halfHeight - 240 + 10; 
+
+    // 获取 container 相对于视口的位置
+    var containerRect = container.getBoundingClientRect();
+
+    // 计算目标相对于 container 的坐标
+    var finalLeft = targetViewportLeft - containerRect.left;
+    var finalTop = targetViewportTop - containerRect.top;
+
+    // 应用飞行动画类
+    sunElement.classList.add('sun-collecting');
+    sunElement.style.left = finalLeft + "px";
+    sunElement.style.top = finalTop + "px";
+
+    // 动画结束后增加阳光值并移除元素
+    setTimeout(function() {
+        // 增加阳光 (访问全局变量)
+        if (typeof sunValue !== 'undefined') {
+            sunValue += 25;
+            if (typeof updateSunDisplay === 'function') {
+                updateSunDisplay();
+            }
+        }
+        
+        // 移除元素
+        if (sunElement.parentNode) {
+            sunElement.parentNode.removeChild(sunElement);
+        }
+    }, 500); // 对应 CSS transition 时间
 }

@@ -371,7 +371,12 @@
 
                         // 检查植物是否死亡
                         if (plant.blood <= 0) {
-                            if (plant.timer) clearInterval(plant.timer);
+                            // 【新增】清除向日葵的产阳光定时器
+                            if (plant.sunTimer) {
+                                clearInterval(plant.sunTimer);
+                            }
+
+                            if (plant.timer) clearInterval(plant.timer); // 原有的射击定时器
 
                             var pIndex = plants.indexOf(plant);
                             if (pIndex > -1) {
