@@ -111,7 +111,7 @@ function createPlant(type, onclick){
         plant.src = "images/TwinSunflower.gif";
         plant.blood = 500; 
     } else if (type == 12) {
-        plant.src = "images/SunFlowerG.gif";
+        plant.src = "images/PotatoMineNotReady.gif";
         plant.blood = 500; 
     } else if (type == 13) {
         plant.src = "images/Squash.gif";
@@ -283,11 +283,24 @@ function creatdBullet(plant, disappear){
 
 // sprites.js
 
-function createZombie(id, gameover){ 
+/**
+ * 创建僵尸函数
+ * @param {number} id - 僵尸ID
+ * @param {function} gameover - 游戏结束回调
+ * @param {number} forcedStatus - (可选) 强制指定的僵尸类型状态 (0-2:普通, 3-4:路障, 5:铁桶)。如果不传则随机。
+ */
+function createZombie(id, gameover, forcedStatus) { 
     var zombie = document.createElement("img"); 
     zombie.id = id; 
-    zombie.status = parseInt(Math.random() * 6); 
     
+    // 【核心修改】根据传入的 forcedStatus 决定 status，否则随机
+    if (forcedStatus !== undefined && forcedStatus !== null) {
+        zombie.status = forcedStatus;
+    } else {
+        zombie.status = parseInt(Math.random() * 6); 
+    }
+    
+    // 根据 status 设置初始图片和血量
     if ([0, 1, 2].indexOf(zombie.status) != -1){ 
         zombie.src = "images/Zombie.gif"; 
         zombie.blood = 10; 
@@ -300,6 +313,8 @@ function createZombie(id, gameover){
     }
     
     zombie.style.position = "absolute"; 
+    
+    // 行号依然随机，或者你也可以在这里传入 forcedRoute
     zombie.route = parseInt(Math.random() * 5); 
     
     // 【关键修改】初始化冰冻状态属性

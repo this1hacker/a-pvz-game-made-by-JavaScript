@@ -97,7 +97,7 @@
         <img class="card" onclick="dragPlant(9)" style="left: 800px;" src="plantcard/Torchwood.png">
         <img class="card" onclick="dragPlant(10)" style="top: 60px;" src="plantcard/Spikeweed.png">
         <img class="card" onclick="dragPlant(11)" style="top: 60px; left: 100px;" src="plantcard/TwinSunflower.png">
-        <img class="card" onclick="dragPlant(12)" style="top: 60px; left: 200px;" src="plantcard/SunFlowerG.png">
+        <img class="card" onclick="dragPlant(12)" style="top: 60px; left: 200px;" src="plantcard/PotatoMine.bmp">
         <img class="card" onclick="dragPlant(13)" style="top: 60px; left: 300px;" src="plantcard/Squash.png">
     </div>
 
@@ -115,13 +115,18 @@
     
     <script src="sprites.js"></script>
     <script>
-        var counter = 0;
-        var duration = 1000;
+        // --- 【全局游戏配置】 ---
+        var MAX_ZOMBIES = 60; // 【修改】在这里统一控制总僵尸数，想改关卡长度只改这一个数
+        
+        var gameStartTime = 0; 
         var zombies = [];
         var zbIndex = 0;
         var plants = [];
         var bullets = [];
         var zbDieNo = 0;
+        
+        // 记录上一只僵尸生成的时间，用于控制间隔
+        var lastZombieSpawnTime = 0; 
 
         // 【新增】全局植物价格表
         var PLANT_PRICES = {
@@ -136,7 +141,7 @@
             9: 175,  // Torchwood
             10: 100, // Spikeweed
             11: 125, // TwinSunflower
-            12: 50,  // SunFlowerG
+            12: 25,  // PotatoMine
             13: 50   // Squash
         };
 
@@ -328,9 +333,6 @@
 
             }, 100 / 8)
         }
-
-        // 【新增】初始化卡牌价格函数
-        // 【新增】初始化卡牌价格函数
        // 【新增】初始化卡牌价格函数
         function initCardPrices() {
             var cards = document.querySelectorAll('.card');
@@ -369,32 +371,118 @@
                 }
             });
         }
-        function addSprite() {  //定义一个addSprite函数，用于添加一个新的精灵
-            if (zbIndex > 20) { //当zbIndex大于等于20时，直接返回，不执行后续代码
-                return
-            }
-            counter++; //每次调用step方法时，将counter属性加1
-            if (parseInt(counter / duration) >= zbIndex) {  //当counter除以duration的整数部分大于等于zbIndex时，说明已经到了添加下一个僵尸精灵的时间
-                zombies.push(createZombie(zbIndex, () => {
-                    alert("Game Over!"); //当僵尸精灵到达左边界时，弹出一个提示框，显示"Game Over!"，表示游戏结束
-                    location.reload(); //重新加载页面，重置游戏状态
-                })); //调用createZombie函数创建一个新的僵尸精灵，并将其添加到zombies数组中
-                if (zbIndex == 2) { //如果当前是第二个僵尸精灵
-                    duration = 100
-                    counter = duration * zbIndex; //将counter重置为duration乘以zbIndex，以便下一个僵尸精灵的添加时间正确计算    
-                }
-                if (zbIndex == 10) { //如果当前是第十个僵尸精灵
-                    duration = 2000 //将duration设置为2000，以便下一个僵尸精灵的添加时间正确计算
-                    counter = duration * zbIndex; //将counter重置为duration乘以zbIndex，以便下一个僵尸精灵的添加时间正确计算    
-                }
-                if (zbIndex == 11) { //如果当前是第十一个僵尸精灵
-                    duration = 100 //将duration设置为100，以便下一个僵尸精灵的添加时间正确计算
-                    counter = duration * zbIndex; //将counter重置为duration乘以zbIndex，以便下一个僵尸精灵的添加时间正确计算    
-                }  //利用20个僵尸的资源，设计了一个僵尸精灵的添加时间表，使得游戏的节奏更加紧凑和有趣
-                zbIndex++; //将zbIndex加1，以便创建下一个僵尸精灵
+        function addSprite() {  
+            // 【修改】使用全局常量
+            if (zbIndex >= MAX_ZOMBIES) { 
+                return;
             }
 
+            var now = Date.now();
+            
+            // 1. 初始化开始时间
+            if (gameStartTime === 0) {
+                gameStartTime = now;
+                lastZombieSpawnTime = now;
+                return;
+            }
 
+            var elapsedTime = now - gameStartTime; 
+            var timeSinceLastSpawn = now - lastZombieSpawnTime; 
+
+            // --- 【阶段配置】 ---
+            var currentStage = "";
+            var spawnInterval = 0; // 生成间隔 (ms)
+            var spawnCount = 1;    // 一次生成几只
+            var zombieTypes = [];  // 允许的僵尸类型权重 [普通, 路障, 铁桶]
+
+            // 阶段 1: 0-30s (发育期)
+            if (elapsedTime < 30000) {
+                currentStage = "Stage 1: Development";
+                spawnInterval = 10000; // 10秒一只，非常慢
+                spawnCount = 1;
+                zombieTypes = [1, 0, 0]; // 100% 普通僵尸
+            }
+            // 阶段 2: 30s-60s (双生试探期)
+            else if (elapsedTime < 60000) {
+                currentStage = "Stage 2: Double Spawn";
+                spawnInterval = 8000; // 8秒一次生成事件
+                spawnCount = 2;       // 每次事件生成2只
+                zombieTypes = [1, 0, 0]; // 依然是普通僵尸
+            }
+            // 阶段 3: 60s-180s (路障引入期, 持续2分钟)
+            else if (elapsedTime < 180000) {
+                currentStage = "Stage 3: Conehead Intro";
+                spawnInterval = 6000; // 6秒一次
+                spawnCount = 1;
+                // 60% 普通, 40% 路障, 0% 铁桶
+                zombieTypes = [6, 4, 0]; 
+            }
+            // 阶段 4: 180s-300s (铁桶引入期, 持续2分钟)
+            else if (elapsedTime < 300000) {
+                currentStage = "Stage 4: Buckethead Intro";
+                spawnInterval = 6000; // 频率不变
+                spawnCount = 1;
+                // 60% 普通, 30% 路障, 10% 铁桶 (铁桶量少)
+                zombieTypes = [5, 3, 2]; 
+            }
+            // 阶段 5: 300s+ (一大波密集僵尸)
+            else {
+                currentStage = "Stage 5: HUGE WAVE";
+                spawnInterval = 2000; // 2秒一只，非常密集
+                spawnCount = 1; 
+                // 30% 普通, 40% 路障, 30% 铁桶 (铁桶量增加，但不过分)
+                zombieTypes = [3, 4, 3]; 
+            }
+
+            // --- 【执行生成逻辑】 ---
+            if (timeSinceLastSpawn >= spawnInterval) {
+                
+                for (var k = 0; k < spawnCount; k++) {
+                    // 【修改】使用全局常量
+                    if (zbIndex >= MAX_ZOMBIES) break;
+            
+            // 检查是否到了生成时间
+            if (timeSinceLastSpawn >= spawnInterval) {
+                
+                for (var k = 0; k < spawnCount; k++) {
+                    // 如果达到总数限制，停止
+                    if (zbIndex >= 50) break;
+
+                    // 根据权重随机选择僵尸类型
+                    var typeRoll = Math.random() * 10; // 0-10
+                    var status = 0; // 默认普通
+
+                    var sumWeights = zombieTypes[0] + zombieTypes[1] + zombieTypes[2];
+                    var randomVal = Math.random() * sumWeights;
+                    
+                    if (randomVal < zombieTypes[0]) {
+                        status = parseInt(Math.random() * 3); // 普通 (0-2)
+                    } else if (randomVal < zombieTypes[0] + zombieTypes[1]) {
+                        status = 3 + parseInt(Math.random() * 2); // 路障 (3-4)
+                    } else {
+                        status = 5; // 铁桶 (5)
+                    }
+
+                    // 创建僵尸
+                    var newZombie = createZombie(zbIndex, () => {
+                        alert("Game Over!"); 
+                        location.reload(); 
+                    }, status);
+
+                    zombies.push(newZombie);
+                    zbIndex++;
+                }
+
+                lastZombieSpawnTime = now;
+            }
+        }
+
+                // 重置上次生成时间
+                lastZombieSpawnTime = now;
+                
+                // 控制台调试信息（可选）
+                // console.log(currentStage + " | Spawned: " + spawnCount + " | Interval: " + spawnInterval/1000 + "s");
+            }
         }
         function spriteStep() {  
             for (var zombie of zombies) { 
@@ -627,9 +715,14 @@
             zombies = zombies.filter(item => item != zombie); //将被击死的僵尸从zombies数组中移除
             container.removeChild(zombie); //将僵尸从container元素中移除
             zbDieNo++; //增加僵尸死亡数量
-            if (zbDieNo > 20) {
-                alert("You Win!"); //当僵尸死亡的数量大于20时，弹出一个提示框，显示"You Win!"，表示游戏胜利
-                location.reload(); //重新加载页面，重置游戏状态
+            
+            // 【核心修改】获胜条件：所有计划僵尸已生成 且 场上无存活僵尸
+            if (zbIndex >= MAX_ZOMBIES && zombies.length === 0) {
+                // 使用 setTimeout 确保 DOM 移除动画完成后再弹窗
+                setTimeout(function() {
+                    alert("You Win! 恭喜通关！"); 
+                    location.reload(); 
+                }, 500);
             }
         }
 
