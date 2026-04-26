@@ -65,6 +65,11 @@ function snapToGrid(x, y) {
 }
 
 function createPlant(type, onclick){
+    // 【新增】如果铲子激活，禁止创建植物
+    if (typeof isShovelActive !== 'undefined' && isShovelActive) {
+        return null;
+    }
+
     var plant = document.createElement("img"); 
     plant.type = type; 
     plant.attack = []; 
@@ -396,4 +401,122 @@ function collectSunAutomatically(sunElement) {
             sunElement.parentNode.removeChild(sunElement);
         }
     }, 500); // 对应 CSS transition 时间
+}
+/**
+ * 【新增】移除植物核心逻辑
+ */
+/**
+ * 【新增】移除植物核心逻辑
+ */
+function removePlant(plant) {
+    if (!plant) return;
+
+    // 1. 清除定时器
+    if (plant.timer) clearInterval(plant.timer); 
+    if (plant.sunTimer) clearInterval(plant.sunTimer); 
+
+    // 2. 从 plants 数组中移除
+    var index = plants.indexOf(plant);
+    if (index > -1) {
+        plants.splice(index, 1);
+    }
+
+    // 3. 从网格状态中移除
+    if (plant.route !== undefined && plant.col !== undefined) {
+        window.gridState[plant.route][plant.col] = null;
+    }
+
+    // 4. 处理正在攻击该植物的僵尸
+    if (plant.attack && plant.attack.length > 0) {
+        for (var zombie of plant.attack) {
+            if (zombie && zombie.blood > 0) {
+                if (zombie.blood <= 10) {
+                    zombie.src = "images/Zombie.gif";
+                } else if (zombie.status == 5) {
+                    zombie.src = "images/BucketheadZombie.gif";
+                } else if (zombie.status == 3 || zombie.status == 4) {
+                    zombie.src = "images/ConeheadZombie.gif";
+                }
+                
+                if (!zombie.isFrozen) {
+                    zombie.speed = zombie.baseSpeed;
+                    zombie.style.filter = "none";
+                }
+            }
+        }
+    }
+
+    // 5. 从 DOM 中移除
+    if (plant.parentNode) {
+        container.removeChild(plant);
+    }
+}
+
+/**
+ * 【新增】初始化铲子交互逻辑
+ */
+function initShovelInteraction() {
+    var shovel = document.getElementById('shovel');
+    if (!shovel) return;
+
+    // 保存铲子的初始样式，以便恢复
+    var initialRight = shovel.style.right;
+    var initialTop = shovel.style.top;
+    var initialLeft = shovel.style.left;
+    var initialPosition = shovel.style.position;
+
+    // 1. 铲子跟随鼠标移动
+    document.addEventListener('mousemove', function(event) {
+        if (typeof isShovelActive !== 'undefined' && isShovelActive) {
+            var rect = container.getBoundingClientRect();
+            var x = event.clientX - rect.left;
+            var y = event.clientY - rect.top;
+            
+            // 只有鼠标在容器内时才跟随
+            if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
+                shovel.style.position = 'absolute';
+                shovel.style.left = (x - 30) + 'px'; 
+                shovel.style.top = (y - 30) + 'px';
+                shovel.style.right = 'auto'; 
+                shovel.style.zIndex = 100; 
+                
+                // 【关键修复】让铲子不阻挡鼠标点击事件，这样才能点到下面的植物
+                shovel.style.pointerEvents = 'none'; 
+            }
+        } else {
+            // 如果铲子未激活，确保它可以被点击（用于关闭铲子模式）
+            shovel.style.pointerEvents = 'auto';
+        }
+    });
+
+    // 2. 点击铲除植物 或 关闭铲子
+    document.addEventListener('click', function(event) {
+        // 如果铲子没激活，直接返回
+        if (typeof isShovelActive === 'undefined' || !isShovelActive) {
+            return;
+        }
+
+        var target = event.target;
+
+        // 情况 A: 点击到了植物 -> 铲除
+        var clickedPlant = null;
+        for (var i = 0; i < plants.length; i++) {
+            if (plants[i] === target) {
+                clickedPlant = plants[i];
+                break;
+            }
+        }
+
+        if (clickedPlant) {
+            removePlant(clickedPlant);
+            // 铲除后，通常游戏里铲子会保持激活状态以便连续铲除。
+            // 如果你希望铲除一次就自动关闭，可以在这里调用 toggleShovel();
+        } 
+        // 情况 B: 点击到了空白处 或 铲子本身 -> 关闭铲子模式
+        else {
+            // 如果点击的不是植物，我们选择关闭铲子模式，防止卡死
+            // 注意：因为铲子设置了 pointer-events: none，点击铲子位置实际上会穿透到背景或空白处
+            toggleShovel();
+        }
+    }, true); 
 }

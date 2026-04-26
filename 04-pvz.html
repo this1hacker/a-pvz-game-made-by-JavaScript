@@ -69,6 +69,12 @@
     <div id="container">
         <img id="bg" src="images/Background.jpg">
 
+        <!-- 【新增】铲子图标 -->
+        <img id="shovel" src="images/Shovel.png" 
+             style="position: absolute; top: 130px; right: 10px; z-index: 30; cursor: pointer;"
+             onclick="toggleShovel()" 
+             title="点击激活/取消铲子">
+
         <!-- 植物卡片 -->
         <img class="card" onclick="dragPlant(1)" src="plantcard/SunFlower.png">
         <img class="card" onclick="dragPlant(2)" style="left: 100px;" src="plantcard/PeaShooter.png">
@@ -96,20 +102,8 @@
         <span id="sun-value-text"
             style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: black; font-size: 20px; font-weight: bold; font-family: Arial, sans-serif;">50</span>
     </div>
-
-    <div style="position: fixed; top: calc(50% - 240px); left: calc(50% - 450px); z-index: 50; pointer-events: none;">
-        <!-- SunBack 图片，不固定宽高，自适应原始尺寸 -->
-        <img src="images/SunBack.png" style="display: block;">
-        <!-- 阳光数值，绝对定位居中 -->
-        <span id="sun-value-text"
-            style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: black; font-size: 20px; font-weight: bold; font-family: Arial, sans-serif;">50</span>
-    </div>
     
-    <script src="sprites.js">
-    </script>
-    <script src="sprites.js">
-
-    </script>
+    <script src="sprites.js"></script>
     <script>
         var counter = 0;
         var duration = 1000;
@@ -119,9 +113,37 @@
         var bullets = [];
         var zbDieNo = 0;
 
+        // 【新增】铲子状态变量
+        var isShovelActive = false;
+
+        // 【新增】切换铲子状态函数
+        function toggleShovel() {
+            isShovelActive = !isShovelActive;
+            var shovel = document.getElementById('shovel');
+            
+            if (isShovelActive) {
+                // 激活状态
+                shovel.style.opacity = "0.8";
+                shovel.style.transform = "scale(1.1)";
+                // 激活时，pointerEvents 由 mousemove 控制
+            } else {
+                // 取消激活：恢复原位
+                shovel.style.opacity = "1";
+                shovel.style.transform = "scale(1)";
+                
+                // 【关键修复】恢复铲子到右上角初始位置
+                shovel.style.position = 'absolute';
+                shovel.style.top = '130px'; // 【修改】从 10px 改为 130px
+                shovel.style.right = '10px';
+                shovel.style.left = 'auto'; // 清除跟随时的 left
+                shovel.style.zIndex = '30'; // 恢复层级
+                shovel.style.pointerEvents = 'auto'; // 恢复可点击
+            }
+        }
+
         // 【新增】阳光系统变量
         var sunValue = 50;
-        var sunDisplay = document.getElementById('sun-value-text');
+        var sunDisplay = null; // 初始化为 null
         var container = document.getElementById('container');
 
         // 【新增】更新阳光显示函数
@@ -235,27 +257,42 @@
             }
         }
 
-        function dragPlant(type) {  //定义一个dragPlant函数，用于处理植物卡片的拖动事件
+         // 【修改】dragPlant 函数，增加铲子判断
+        function dragPlant(type) {  
+            // 如果铲子处于激活状态，禁止种植
+            if (isShovelActive) {
+                return; 
+            }
+            
             createPlant(type, plant => {
-                shoot(plant); //调用shoot函数，传入创建的植物精灵作为参数，处理植物的射击事件
-                plant.timer = setInterval(() => { //定义一个定时器，每隔2000毫秒调用一次shoot函数，传入当前植物精灵作为参数，处理植物的射击事件
+                shoot(plant); 
+                plant.timer = setInterval(() => { 
                     shoot(plant);
-                }, 1800) //每隔1800毫秒调用一次shoot函数，处理植物的射击事件
+                }, 1800) 
                 plants.push(plant);
-            }); //调用createPlant函数，创建一个新的植物精灵，参数type表示植物的类型
+            }); 
         }
         // 监听网页是否退到后台
         document.onvisibilitychange = function () {
             isBack = document.visibilityState != 'visible';
         }
         window.onload = function () {
+            // 【新增】确保在 DOM 加载完成后获取阳光显示元素
+            sunDisplay = document.getElementById('sun-value-text');
+            
             updateSunDisplay(); // 初始化显示
             startNaturalSun();  // 【新增】启动自然阳光
+            
+            // 【新增】初始化铲子交互逻辑 (调用 sprites.js 中的函数)
+            if (typeof initShovelInteraction === 'function') {
+                initShovelInteraction();
+            }
+
             setInterval(() => {
                 if (!window.isBack) {
-                    addSprite(); //每隔100/8毫秒调用一次addSprite函数，添加一个新的僵尸精灵
-                    spriteStep(); //每隔100/8毫秒调用一次spriteStep函数，更新所有僵尸精灵的位置和状态
-                    onHitting(); //每隔100/8毫秒调用一次onHitting函数，处理精灵被击中的情况
+                    addSprite(); 
+                    spriteStep(); 
+                    onHitting(); 
                 }
 
             }, 100 / 8)
