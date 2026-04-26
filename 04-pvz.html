@@ -83,9 +83,9 @@
 
     <!-- 【新增】阳光显示区域，位于地刺正下方 -->
     <!-- 使用 fixed 定位确保它始终在屏幕指定位置，不受 container 滚动影响 -->
-    <!-- 假设屏幕居中，container 宽 900，高 600。地刺在 left:800, top:60。 -->
+    <!-- 假设屏幕居中，container 宽 900，高 720。地刺在 left:800, top:60。 -->
     <!-- 这里我们简单地将它放在 body 下，通过 calc 计算居中后的偏移 -->
-    <div style="position: fixed; top: calc(50% - 300px + 120px); left: calc(50% - 450px + 800px); z-index: 50; pointer-events: none;">
+    <div style="position: fixed; top: calc(50% - 240px); left: calc(50% - 450px); z-index: 50; pointer-events: none;">
         <!-- SunBack 图片，不固定宽高，自适应原始尺寸 -->
         <img src="images/SunBack.png" style="display: block;">
         <!-- 阳光数值，绝对定位居中 -->
@@ -143,18 +143,18 @@
                 sunValue += 25; 
                 updateSunDisplay();
                 
-                // 【修复】计算飞向目标的坐标
-                // 目标位置是 fixed 定位: 
-                // Top: calc(50% - 300px + 120px)
-                // Left: calc(50% - 450px + 800px)
+                // 【修复】计算飞向新目标的坐标
+                // 新目标位置: top: calc(50% - 240px); left: calc(50% - 450px);
                 
-                // 我们需要将这些百分比转换为相对于 container 的像素值
                 var halfWidth = window.innerWidth / 2;
                 var halfHeight = window.innerHeight / 2;
                 
                 // 目标相对于视口 (Viewport) 的坐标
-                var targetViewportLeft = halfWidth - 450 + 800 + 10; // +10 微调
-                var targetViewportTop = halfHeight - 300 + 120 + 10;
+                // 对应 CSS: left: calc(50% - 450px)
+                var targetViewportLeft = halfWidth - 450 + 10; // +10 微调居中
+                
+                // 对应 CSS: top: calc(50% - 240px)
+                var targetViewportTop = halfHeight - 240 + 10; // +10 微调居中
                 
                 // 获取 container 相对于视口的位置
                 var containerRect = container.getBoundingClientRect();
