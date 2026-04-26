@@ -2,32 +2,46 @@ var container = document.getElementById('container');
 function createPlant(type, onclick){
     var plant = document.createElement("img"); //创建一个img元素
     plant.type = type; //为img元素添加一个type属性，值为传入的type参数
+    plant.attack = []; //为img元素添加一个attack属性，值为一个空数组
     if (type == 1) { //根据传入的type参数设置img元素的src属性
         plant.src = "images/SunFlower.gif";
+        plant.blood = 500; //为img元素添加一个blood属性，值为500
     } else if (type == 2) {
         plant.src = "images/PeaShooter.gif";
+        plant.blood = 500; //为img元素添加一个blood属性，值为500
     } else if (type == 3) {
         plant.src = "images/SnowPea.gif";
+        plant.blood = 500; //为img元素添加一个blood属性，值为500
     } else if (type == 4) {
         plant.src = "images/Repeater.gif";
+        plant.blood = 500; //为img元素添加一个blood属性，值为500
     } else if (type == 5) {
         plant.src = "images/CherryBomb.gif";
+        plant.blood = 500; //为img元素添加一个blood属性，值为500
     } else if (type == 6) {
         plant.src = "images/Chomper.gif";
+        plant.blood = 500; //为img元素添加一个blood属性，值为500
     } else if (type == 7) {
         plant.src = "images/WallNut.gif";
+        plant.blood = 3000; //为img元素添加一个blood属性，值为3000
     } else if (type == 8) {
         plant.src = "images/Garlic.gif";
+        plant.blood = 500; //为img元素添加一个blood属性，值为500
     } else if (type == 9) {
         plant.src = "images/Torchwood.gif";
+        plant.blood = 500; //为img元素添加一个blood属性，值为500
     } else if (type == 10) {
         plant.src = "images/Spikeweed.gif";
+        plant.blood = 500; //为img元素添加一个blood属性，值为500
     } else if (type == 11) {
         plant.src = "images/TwinSunflower.gif";
+        plant.blood = 500; //为img元素添加一个blood属性，值为500
     } else if (type == 12) {
         plant.src = "images/SunFlowerG.gif";
+        plant.blood = 500; //为img元素添加一个blood属性，值为500
     } else if (type == 13) {
         plant.src = "images/Squash.gif";
+        plant.blood = 500; //为img元素添加一个blood属性，值为500
     }
     plant.style.position = "absolute"; //设置img元素的position属性为absolute
     document.oncontextmenu = function(event){

@@ -130,7 +130,39 @@
 
                     }
                 }
+                for (var zombie of zombies){
+                    var plant = eatPlantBy(zombie);
+                    if (plant && zombie.src.endsWith("Zombie.gif")){ // 判断是否被吃掉
+                        zombie.src = "images/ZombieAttack.gif"; //如果僵尸正在吃植物，将僵尸的图片源更改为ZombieAttack.gif，显示吃植物的效果
+                        plant.attack.push(zombie) //将僵尸的id添加到植物的attack数组中，表示该植物正在被这个僵尸攻击
+                    } else if (plant && plant.blood <= 0) {
+                        if (plant.timer) clearInterval(plant.timer); //如果植物有timer属性，说明植物正在射击，调用clearInterval函数停止植物的射击定时器
+                        plants.splice(plant.index, 1); //如果植物的血量小于等于0，说明植物被吃死了，将植物从plants数组中移除
+                        container.removeChild(plant); //将植物从container元素中移除
+                        for (var zz of plant.attack) {
+                            if (zz && zz.blood > 0) {
+                                zz.src = "images/Zombie.gif"; //将正在攻击该植物的僵尸的图片源更改为Zombie.gif，显示正常行走的效果
+                            }
+
+                        }
+                    } else if (plant) {
+                        plant.blood--; //如果植物的血量大于0，说明植物正在被攻击，将植物的血量减1
+                    }
+                }
             }
+            function eatPlantBy(zombie) {
+            for (var i in plants) {
+                var plant = plants[i];
+                if (plant.offsetLeft - 40 > zombie.offsetLeft &&
+                plant.offsetLeft - 100 < zombie.offsetLeft &&
+                plant.route == zombie.route) { //判断僵尸是否在植物的范围内，并且与植物在同一行
+                plant.index = i; // 记录所在下标
+                return plant;
+                }
+            }
+            return null; //返回null，表示没有找到被僵尸吃掉的植物
+            }
+
             function hitZombie(bullet) {  //定义一个hitZombie函数，用于判断子弹是否击中僵尸
                 for (var zombie of zombies) { //遍历zombies数组中的每个僵尸精灵
                     if (bullet.offsetLeft - 70 > zombie.offsetLeft &&
