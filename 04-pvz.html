@@ -5,52 +5,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>pvz</title>
-    <style>
+        <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
         #container {
             width: 900px;
+            height: 720px; /* 【修改】高度从 600px 增加到 720px，向下扩大 120px */
             overflow: hidden;
             position: relative;
+            background-color: #4a8c3a;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
 
         #bg {
             margin-left: -150px;
-            margin-top: 120px;
-            /* 修改：背景总共向下移动120像素 */
+            margin-top: 120px; /* 保持原样，确保背景与卡片对齐 */
+            position: absolute;
+            top: 0;
+            left: 0;
+            /* 如果背景图高度不够，可能需要设置 background-size 或更换大图 */
         }
 
         .card {
             position: absolute;
             top: 0px;
             left: 0px;
-        }
-        /* 【新增】阳光显示区域样式 */
-        #sun-display-area {
-            position: absolute;
-            top: 65px;       /* 在地刺卡片 (top: 60px) 的下方一点 */
-            left: 800px;     /* 保持和地刺卡片一样的左对齐，或者你可以调整到左边 */
-            width: 80px;
-            height: 80px;
-            z-index: 100;
-            pointer-events: none; /* 让点击穿透，不影响游戏操作 */
-        }
-
-        #sun-bg-img {
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-        }
-
-        #sun-value-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: black;      /* 字体颜色，根据背景图调整，如果是深色背景用白色 */
-            font-size: 20px;
-            font-weight: bold;
-            font-family: Arial, sans-serif;
+            cursor: pointer;
+            z-index: 20;
         }
 
         /* 【新增】掉落的阳光样式 */
@@ -59,21 +49,23 @@
             width: 60px;
             height: 60px;
             cursor: pointer;
-            z-index: 90;
-            transition: top 3s linear; /* 下落动画 */
+            z-index: 100; /* 确保阳光在最上层 */
+            transition: top 3s linear, left 3s linear; /* 下落动画 */
+        }
+        
+        /* 阳光收集时的飞向动画类 */
+        .sun-collecting {
+            transition: all 0.5s ease-in !important;
+            opacity: 0;
         }
     </style>
 </head>
 
 <body ondragstart="return false;">
     <div id="container">
-        <!-- 【新增】阳光显示区域 -->
-        <div id="sun-display-area">
-            <img id="sun-bg-img" src="images/SunBack.png" alt="Sun Background">
-            <span id="sun-value-text">50</span>
-        </div>
-
         <img id="bg" src="images/Background.jpg">
+        
+        <!-- 植物卡片 -->
         <img class="card" onclick="dragPlant(1)" src="plantcard/SunFlower.png">
         <img class="card" onclick="dragPlant(2)" style="left: 100px;" src="plantcard/PeaShooter.png">
         <img class="card" onclick="dragPlant(3)" style="left: 200px;" src="plantcard/SnowPea.png">
@@ -89,20 +81,35 @@
         <img class="card" onclick="dragPlant(13)" style="top: 60px; left: 300px;" src="plantcard/Squash.png">
     </div>
 
+    <!-- 【新增】阳光显示区域，位于地刺正下方 -->
+    <!-- 使用 fixed 定位确保它始终在屏幕指定位置，不受 container 滚动影响 -->
+    <!-- 假设屏幕居中，container 宽 900，高 600。地刺在 left:800, top:60。 -->
+    <!-- 这里我们简单地将它放在 body 下，通过 calc 计算居中后的偏移 -->
+    <div style="position: fixed; top: calc(50% - 300px + 120px); left: calc(50% - 450px + 800px); z-index: 50; pointer-events: none;">
+        <!-- SunBack 图片，不固定宽高，自适应原始尺寸 -->
+        <img src="images/SunBack.png" style="display: block;">
+        <!-- 阳光数值，绝对定位居中 -->
+        <span id="sun-value-text" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: black; font-size: 20px; font-weight: bold; font-family: Arial, sans-serif;">50</span>
+    </div>
+
+    <script src="sprites.js">
+    </script>
     <script src="sprites.js">
 
     </script>
     <script>
-        var counter = 0; //定义一个全局变量counter，用于计数
-        var duration = 1000; //定义一个全局变量duration，1000个数为一个周期
-        var zombies = []; //定义一个全局变量zombies，用于存储所有的僵尸精灵
-        var zbIndex = 0; //定义一个全局变量zbIndex，用于记录当前僵尸精灵的索引
-        var plants = []; //定义一个全局变量plants，用于存储所有的植物精灵
-        var bullets = []; //定义一个全局变量bullets，用于存储所有的子弹精灵
-        var zbDieNo = 0; //定义一个全局变量zbDieNo，用于记录僵尸死亡的数量
+        var counter = 0; 
+        var duration = 1000; 
+        var zombies = []; 
+        var zbIndex = 0; 
+        var plants = []; 
+        var bullets = []; 
+        var zbDieNo = 0; 
+        
         // 【新增】阳光系统变量
-        var sunValue = 50; // 初始阳光值
+        var sunValue = 50; 
         var sunDisplay = document.getElementById('sun-value-text');
+        var container = document.getElementById('container'); 
 
         // 【新增】更新阳光显示函数
         function updateSunDisplay() {
@@ -114,43 +121,51 @@
         // 【新增】创建掉落阳光的函数
         function createFallingSun() {
             var sun = document.createElement("img");
-            sun.src = "images/Sun.gif"; // 使用你提供的 Sun.gif
+            sun.src = "images/Sun.gif"; 
             sun.className = "falling-sun";
             
             // 随机水平位置 (容器宽 900，减去阳光宽 60)
             var randomLeft = Math.floor(Math.random() * (900 - 60));
             sun.style.left = randomLeft + "px";
-            sun.style.top = "-60px"; // 从屏幕上方开始
+            sun.style.top = "-60px"; 
             
-            // 添加到 container 中，这样它会随页面滚动（如果有）且层级正确
             container.appendChild(sun);
 
-            // 触发下落动画 (稍微延迟以确保 CSS transition 生效)
+            // 触发下落动画
             setTimeout(function() {
-                // 随机落点高度 (在草坪区域内，大约 150px 到 550px 之间)
-                var randomTop = Math.floor(Math.random() * (550 - 150) + 150);
+                var randomTop = Math.floor(Math.random() * (500 - 150) + 150); // 落在草坪区域
                 sun.style.top = randomTop + "px";
             }, 50);
 
             // 点击事件：收集阳光
-            sun.onclick = function() {
-                sunValue += 25; // 每个阳光加 25 分
+            sun.onclick = function(e) {
+                e.stopPropagation(); // 防止事件冒泡
+                sunValue += 25; 
                 updateSunDisplay();
                 
-                // 收集动画：飞向左上角的阳光显示区
-                // 获取阳光显示区的位置
-                var displayArea = document.getElementById('sun-display-area');
-                var rect = displayArea.getBoundingClientRect();
+                // 【修复】计算飞向目标的坐标
+                // 目标位置是 fixed 定位: 
+                // Top: calc(50% - 300px + 120px)
+                // Left: calc(50% - 450px + 800px)
+                
+                // 我们需要将这些百分比转换为相对于 container 的像素值
+                var halfWidth = window.innerWidth / 2;
+                var halfHeight = window.innerHeight / 2;
+                
+                // 目标相对于视口 (Viewport) 的坐标
+                var targetViewportLeft = halfWidth - 450 + 800 + 10; // +10 微调
+                var targetViewportTop = halfHeight - 300 + 120 + 10;
+                
+                // 获取 container 相对于视口的位置
                 var containerRect = container.getBoundingClientRect();
                 
-                // 计算相对于 container 的目标位置
-                var targetLeft = rect.left - containerRect.left + 10;
-                var targetTop = rect.top - containerRect.top + 10;
+                // 计算目标相对于 container 的坐标
+                var finalLeft = targetViewportLeft - containerRect.left;
+                var finalTop = targetViewportTop - containerRect.top;
 
-                sun.style.transition = "all 0.5s ease-in";
-                sun.style.left = targetLeft + "px";
-                sun.style.top = targetTop + "px";
-                sun.style.opacity = "0"; // 逐渐消失
+                sun.classList.add('sun-collecting');
+                sun.style.left = finalLeft + "px";
+                sun.style.top = finalTop + "px";
 
                 // 动画结束后移除元素
                 setTimeout(function() {
@@ -162,8 +177,9 @@
 
             // 如果 8 秒内没被点击，自动消失
             setTimeout(function() {
-                if (sun.parentNode && sun.style.opacity !== "0") {
+                if (sun.parentNode && !sun.classList.contains('sun-collecting')) {
                     sun.style.opacity = "0";
+                    sun.style.transition = "opacity 0.5s";
                     setTimeout(function() {
                         if (sun.parentNode) sun.parentNode.removeChild(sun);
                     }, 500);
@@ -173,10 +189,7 @@
 
         // 【新增】启动自然阳光掉落定时器
         function startNaturalSun() {
-            // 每 10 秒掉落一个阳光
             setInterval(createFallingSun, 10000);
-            
-            // 游戏开始时先掉一个，避免等待太久
             setTimeout(createFallingSun, 2000);
         }
         function shoot(plant) {  //定义一个shoot函数，用于处理植物的射击事件，参数plant表示射击的植物精灵
