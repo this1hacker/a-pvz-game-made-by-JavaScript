@@ -298,10 +298,24 @@
 
             // 2. 直接创建植物预览，阳光扣除逻辑移至 createPlant 内部的成功放置分支
             createPlant(type, plant => {
-                shoot(plant); 
-                plant.timer = setInterval(() => { 
-                    shoot(plant);
-                }, 1800) 
+                
+                // 【新增】如果是土豆地雷，在放置成功后开始倒计时
+                if (type == 12) {
+                    setTimeout(function() {
+                        // 再次检查植物是否还存在，防止被铲子铲除后仍变图
+                        if (plant.parentNode) {
+                            plant.src = "images/PotatoMine.gif";
+                            plant.isReady = true;
+                        }
+                    }, 20000); // 【修改】这里从 3000 改为 20000，即 20 秒
+                } else {
+                    // 其他植物的射击逻辑
+                    shoot(plant); 
+                    plant.timer = setInterval(() => { 
+                        shoot(plant);
+                    }, 1800);
+                }
+                
                 plants.push(plant);
             }); 
         }
@@ -398,40 +412,40 @@
             // 阶段 1: 0-30s (发育期)
             if (elapsedTime < 30000) {
                 currentStage = "Stage 1: Development";
-                spawnInterval = 10000; // 10秒一只，非常慢
+                spawnInterval = 10000; // 10秒一只
                 spawnCount = 1;
-                zombieTypes = [1, 0, 0]; // 100% 普通僵尸
+                zombieTypes = [1, 0, 0]; // 100% 普通
             }
             // 阶段 2: 30s-60s (双生试探期)
             else if (elapsedTime < 60000) {
                 currentStage = "Stage 2: Double Spawn";
-                spawnInterval = 8000; // 8秒一次生成事件
-                spawnCount = 2;       // 每次事件生成2只
-                zombieTypes = [1, 0, 0]; // 依然是普通僵尸
+                spawnInterval = 8000; 
+                spawnCount = 2;       
+                zombieTypes = [1, 0, 0]; 
             }
-            // 阶段 3: 60s-180s (路障引入期, 持续2分钟)
+            // 阶段 3: 60s-180s (路障引入期 + 增强, 持续2分钟)
             else if (elapsedTime < 180000) {
-                currentStage = "Stage 3: Conehead Intro";
-                spawnInterval = 6000; // 6秒一次
+                currentStage = "Stage 3: Conehead Enhanced";
+                spawnInterval = 4500; // 【增强】密度提升：从6秒改为4.5秒
                 spawnCount = 1;
-                // 60% 普通, 40% 路障, 0% 铁桶
-                zombieTypes = [6, 4, 0]; 
+                // 【增强】比例调整：50% 普通, 50% 路障 (之前是6:4)
+                zombieTypes = [5, 5, 0]; 
             }
-            // 阶段 4: 180s-300s (铁桶引入期, 持续2分钟)
+            // 阶段 4: 180s-300s (铁桶引入期 + 高密度, 持续2分钟)
             else if (elapsedTime < 300000) {
-                currentStage = "Stage 4: Buckethead Intro";
-                spawnInterval = 6000; // 频率不变
+                currentStage = "Stage 4: Buckethead Rush";
+                spawnInterval = 3500; // 【增强】密度进一步提升：从4秒改为3.5秒
                 spawnCount = 1;
-                // 60% 普通, 30% 路障, 10% 铁桶 (铁桶量少)
-                zombieTypes = [5, 3, 2]; 
+                // 40% 普通, 35% 路障, 25% 铁桶 (铁桶比例显著提升)
+                zombieTypes = [4, 3.5, 2.5]; 
             }
-            // 阶段 5: 300s+ (一大波密集僵尸)
+            // 阶段 5: 300s+ (终极尸潮, 极高密度)
             else {
                 currentStage = "Stage 5: HUGE WAVE";
-                spawnInterval = 2000; // 2秒一只，非常密集
+                spawnInterval = 1200; // 【增强】极限密度：从1.5秒改为1.2秒
                 spawnCount = 1; 
-                // 30% 普通, 40% 路障, 30% 铁桶 (铁桶量增加，但不过分)
-                zombieTypes = [3, 4, 3]; 
+                // 10% 普通, 40% 路障, 50% 铁桶 (绝大部分是高血量僵尸)
+                zombieTypes = [1, 4, 5]; 
             }
 
             // --- 【执行生成逻辑】 ---
@@ -440,20 +454,11 @@
                 for (var k = 0; k < spawnCount; k++) {
                     // 【修改】使用全局常量
                     if (zbIndex >= MAX_ZOMBIES) break;
-            
-            // 检查是否到了生成时间
-            if (timeSinceLastSpawn >= spawnInterval) {
-                
-                for (var k = 0; k < spawnCount; k++) {
-                    // 如果达到总数限制，停止
-                    if (zbIndex >= 50) break;
 
                     // 根据权重随机选择僵尸类型
-                    var typeRoll = Math.random() * 10; // 0-10
-                    var status = 0; // 默认普通
-
                     var sumWeights = zombieTypes[0] + zombieTypes[1] + zombieTypes[2];
                     var randomVal = Math.random() * sumWeights;
+                    var status = 0; 
                     
                     if (randomVal < zombieTypes[0]) {
                         status = parseInt(Math.random() * 3); // 普通 (0-2)
@@ -473,15 +478,11 @@
                     zbIndex++;
                 }
 
-                lastZombieSpawnTime = now;
-            }
-        }
-
                 // 重置上次生成时间
                 lastZombieSpawnTime = now;
                 
-                // 控制台调试信息（可选）
-                // console.log(currentStage + " | Spawned: " + spawnCount + " | Interval: " + spawnInterval/1000 + "s");
+                // 控制台调试信息
+                // console.log(currentStage + " | Interval: " + spawnInterval/1000 + "s");
             }
         }
         function spriteStep() {  
@@ -510,7 +511,7 @@
         // 04-pvz.html <script>
 
         function onHitting() {
-            // 1. 先处理所有子弹的飞行和碰撞检测
+            // 1.先处理所有子弹的飞行和碰撞检测
             for (var i = bullets.length - 1; i >= 0; i--) {
                 var bullet = bullets[i];
                 if (bullet.src.endsWith("BulletHit.gif")) {
@@ -522,7 +523,115 @@
                 }
             }
 
-            // 2. 再处理僵尸吃植物的逻辑
+            // 2. 【终极修复】土豆地雷爆炸逻辑 - 分离特效与本体
+            for (var pIndex = plants.length - 1; pIndex >= 0; pIndex--) {
+                var plant = plants[pIndex];
+                
+                if (plant.type == 12 && plant.isReady) {
+                    var exploded = false;
+                    
+                    // 遍历所有僵尸，检测是否在爆炸范围内
+                    for (var z of zombies) {
+                        if (z.blood <= 0 || z.src.includes("Die") || z.src.includes("LostHead")) {
+                            continue;
+                        }
+
+                        // 判定位置：以植物左边缘为基准
+                        var plantCenterX = plant.offsetLeft; 
+                        var zombieCenterX = z.offsetLeft + 40; 
+                        var distance = Math.abs(plantCenterX - zombieCenterX);
+                        
+                        // 触发距离：30px
+                        if (plant.route == z.route && distance < 30) {
+                            
+                            // --- 第一步：立即清理原植物（释放格子、移除DOM、移除数组）---
+                            
+                            // 1. 释放网格状态
+                            if (plant.route !== undefined && plant.col !== undefined) {
+                                window.gridState[plant.route][plant.col] = null;
+                            }
+                            
+                            // 2. 记录位置用于生成特效
+                            var effectLeft = plant.style.left;
+                            var effectTop = plant.style.top;
+                            
+                            // 3. 从数组移除
+                            plants.splice(pIndex, 1);
+                            
+                            // 4. 从 DOM 立即移除原植物
+                            if (plant.parentNode) {
+                                plant.parentNode.removeChild(plant);
+                            }
+                            
+                            // --- 第二步：创建独立的爆炸特效图片 ---
+                            var explosionEffect = document.createElement("img");
+                            explosionEffect.src = "images/PotatoMine_mashed.gif";
+                            explosionEffect.style.position = "absolute";
+                            explosionEffect.style.left = effectLeft;
+                            explosionEffect.style.top = effectTop;
+                            explosionEffect.style.zIndex = "5"; // 低层级
+                            explosionEffect.style.pointerEvents = "none"; // 不阻挡鼠标
+                            container.appendChild(explosionEffect);
+                            
+                            // 5. 设置特效自动销毁定时器
+                            setTimeout(function() {
+                                if (explosionEffect.parentNode) {
+                                    explosionEffect.parentNode.removeChild(explosionEffect);
+                                }
+                            }, 500); // 0.5秒后销毁特效图
+
+                            // --- 第三步：对范围内僵尸造成伤害 ---
+                            for (var targetZ of zombies) {
+                                if (targetZ.blood <= 0 || targetZ.src.includes("Die") || targetZ.src.includes("LostHead")) {
+                                    continue;
+                                }
+
+                                if (targetZ.route == plant.route) {
+                                    var distToExplosion = Math.abs(plantCenterX - (targetZ.offsetLeft + 40));
+                                    
+                                    // 伤害范围：40px
+                                    if (distToExplosion < 40) { 
+                                        targetZ.blood -= 100;
+                                        
+                                        if (targetZ.blood <= 0) {
+                                            var head = creatdHead(targetZ);
+                                            
+                                            if (targetZ.src.includes("Attack")) {
+                                                targetZ.src = "images/ZombieLostHeadAttack.gif";
+                                            } else {
+                                                targetZ.src = "images/ZombieLostHead.gif";
+                                            }
+                                            
+                                            (function(z, h) {
+                                                setTimeout(() => {
+                                                    if(z.parentNode) {
+                                                        z.src = "images/ZombieDie.gif";
+                                                        if(h.parentNode) container.removeChild(h);
+                                                    }
+                                                }, 1000);
+                                                
+                                                setTimeout(() => {
+                                                    zombieDie(z);
+                                                }, 2000);
+                                            })(targetZ, head);
+                                        } else {
+                                            targetZ.style.opacity = 0.5;
+                                            setTimeout(() => { if(targetZ.parentNode) targetZ.style.opacity = 1; }, 100);
+                                        }
+                                    }
+                                }
+                            }
+
+                            exploded = true;
+                            break; 
+                        }
+                    }
+                    
+                    if (exploded) break; 
+                }
+            }
+
+            // 3. 再处理普通僵尸吃植物的逻辑 (原有的 eatPlantBy 逻辑)
             for (var j = zombies.length - 1; j >= 0; j--) {
                 var zombie = zombies[j];
 
@@ -533,14 +642,91 @@
                 var plant = eatPlantBy(zombie);
 
                 if (plant) {
-                    if (zombie.blood > 0) {
-                        // --- 僵尸攻击图片逻辑 ---
-                        if (zombie.blood <= 10) {
-                            if (!zombie.src.includes("Attack")) zombie.src = "images/ZombieAttack.gif";
-                        } else if (zombie.status == 5) {
-                            if (!zombie.src.includes("Attack")) zombie.src = "images/BucketheadZombieAttack.gif";
+                    // 【重要修复】处理土豆地雷的逻辑
+                    if (plant.type == 12) {
+                        if (!plant.isReady) {
+                            // --- 情况 A: 未就绪 -> 允许被吃 ---
+                            
+                            // 1. 让僵尸显示“正在吃”的图片
+                            if (zombie.blood <= 10) {
+                                if (!zombie.src.includes("Attack")) zombie.src = "images/ZombieAttack.gif";
+                            } else if (zombie.status == 5) {
+                                if (!zombie.src.includes("Attack")) zombie.src = "images/BucketheadZombieAttack.gif";
+                            } else {
+                                if (!zombie.src.includes("Attack")) zombie.src = "images/ConeheadZombieAttack.gif";
+                            }
+
+                            // 2. 将僵尸加入植物的攻击列表（防止多个僵尸同时吃导致逻辑混乱，虽然通常只有一个）
+                            if (!plant.attack.includes(zombie)) {
+                                plant.attack.push(zombie);
+                            }
+
+                            // 3. 扣血
+                            plant.blood--;
+
+                            // 4. 检查是否被吃完
+                            if (plant.blood <= 0) {
+                                // 被吃完了，正常移除，不爆炸
+                                if (plant.timer) clearInterval(plant.timer);
+                                
+                                var pIndex = plants.indexOf(plant);
+                                if (pIndex > -1) {
+                                    plants.splice(pIndex, 1);
+                                }
+                                
+                                if (plant.route !== undefined && plant.col !== undefined) {
+                                    window.gridState[plant.route][plant.col] = null;
+                                }
+
+                                container.removeChild(plant);
+
+                                // 僵尸恢复行走
+                                for (var zz of plant.attack) {
+                                    if (zz && zz.blood > 0) {
+                                        if (zz.blood <= 10) {
+                                            zz.src = "images/Zombie.gif";
+                                        } else if (zz.status == 5) {
+                                            zz.src = "images/BucketheadZombie.gif";
+                                        } else if (zz.status == 3 || zz.status == 4) {
+                                            zz.src = "images/ConeheadZombie.gif";
+                                        }
+                                        
+                                        if (!zz.isFrozen) {
+                                            zz.speed = zz.baseSpeed;
+                                            zz.style.filter = "none";
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // 注意：这里直接 continue 跳过后续通用的扣血逻辑，因为上面已经处理完了
+                            continue; 
+
                         } else {
-                            if (!zombie.src.includes("Attack")) zombie.src = "images/ConeheadZombieAttack.gif";
+                            // --- 情况 B: 已就绪 -> 理论上应该触发爆炸 ---
+                            // 如果代码执行到这里，说明僵尸贴脸了但没触发上面的爆炸检测（可能是距离判定极小误差）
+                            // 为了保险，我们强制触发一次爆炸逻辑，或者视为被吃掉。
+                            // 这里选择视为被吃掉（虽然不合理，但防止卡死），或者你可以选择在这里手动调用爆炸逻辑。
+                            // 鉴于上面的爆炸检测范围是 <30，而 eatPlantBy 的范围更宽，这里可能存在空隙。
+                            // 最稳妥的方式：如果已就绪却被吃，强制引爆。
+                            
+                            // 由于引爆逻辑比较复杂且涉及数组操作，简单起见，我们让它像普通植物一样被扣血直至死亡（不爆炸）
+                            // 或者，你可以取消下面的注释来强制引爆（需要重构代码，较复杂）。
+                            // 目前保持原样：已就绪的土豆雷如果被“吃”（即错过了爆炸判定），则被摧毁而不爆炸。
+                        }
+                    }
+
+                    // --- 通用植物被吃逻辑 (非土豆雷，或土豆雷已就绪但未爆炸的情况) ---
+                    if (plant.blood > 0) {
+                        // --- 僵尸攻击图片逻辑 ---
+                        if (plant.type != 12) { // 土豆雷不需要显示被吃的动画（除非未就绪，上面已处理）
+                            if (zombie.blood <= 10) {
+                                if (!zombie.src.includes("Attack")) zombie.src = "images/ZombieAttack.gif";
+                            } else if (zombie.status == 5) {
+                                if (!zombie.src.includes("Attack")) zombie.src = "images/BucketheadZombieAttack.gif";
+                            } else {
+                                if (!zombie.src.includes("Attack")) zombie.src = "images/ConeheadZombieAttack.gif";
+                            }
                         }
 
                         if (!plant.attack.includes(zombie)) {

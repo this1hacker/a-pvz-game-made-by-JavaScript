@@ -110,9 +110,11 @@ function createPlant(type, onclick){
     } else if (type == 11) {
         plant.src = "images/TwinSunflower.gif";
         plant.blood = 500; 
-    } else if (type == 12) {
+     } else if (type == 12) {
         plant.src = "images/PotatoMineNotReady.gif";
         plant.blood = 500; 
+        // 【修改】移除这里的 setTimeout，不在创建时开始计时
+        plant.isReady = false; 
     } else if (type == 13) {
         plant.src = "images/Squash.gif";
         plant.blood = 500; 
