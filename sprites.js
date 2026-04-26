@@ -158,7 +158,7 @@ function createPlant(type, onclick){
     }
 
     // --- 鼠标按下：确定放置 ---
-        document.onmousedown = function(event){ 
+    document.onmousedown = function(event){ 
         document.onmousemove = null; 
         document.onmousedown = null;
 
@@ -181,6 +181,24 @@ function createPlant(type, onclick){
             if (window.gridState[pos.row][pos.col]) {
                 if(plant.parentNode) container.removeChild(plant);
                 return;
+            }
+
+            // 【核心修改】在真正放置前，检查并扣除阳光
+            // 注意：PLANT_PRICES 定义在 HTML 的全局作用域中，这里可以直接访问
+            var price = PLANT_PRICES[type];
+            if (typeof sunValue !== 'undefined' && typeof updateSunDisplay === 'function') {
+                if (sunValue < price) {
+                    // 阳光不足，移除预览植物，不执行放置
+                    console.log("阳光不足，无法种植！需要: " + price);
+                    if(plant.parentNode) container.removeChild(plant);
+                    
+                    // 可选：添加一个视觉提示，比如闪红屏幕或播放音效
+                    return; 
+                }
+                
+                // 阳光充足，正式扣除
+                sunValue -= price;
+                updateSunDisplay();
             }
 
             // 正式放置
