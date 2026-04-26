@@ -15,7 +15,7 @@ function createPlant(type, onclick){
     } else if (type == 6) {
         plant.src = "images/Chomper.gif";
     } else if (type == 7) {
-        plant.src = "images/TallNut.gif";
+        plant.src = "images/WallNut.gif";
     } else if (type == 8) {
         plant.src = "images/Garlic.gif";
     } else if (type == 9) {
@@ -119,7 +119,7 @@ function createZombie(id) {
             return
         }
         zombie.counter = 0; //每5次调用step方法，僵尸移动一次
-        if((zombie.src.endsWith("Zombie.gif") && zombie.offsetLeft > -200) || zombie.src == "images/ZombieLostHead.gif"){ 
+        if((zombie.src.endsWith("Zombie.gif") && zombie.offsetLeft > -200)){ 
             zombie.style.left = zombie.offsetLeft - 1 + "px"; 
         } //如果僵尸的src属性以"Zombie.gif"结尾且未到达边界，或者僵尸的src属性为"images/ZombieLostHead.gif"，则将僵尸的left属性减少1像素，使僵尸向左移动
         

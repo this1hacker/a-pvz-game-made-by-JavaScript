@@ -71,7 +71,7 @@ function createPlant(type, onclick){
     else if (type == 4) { plant.src = "images/Repeater.gif"; } 
     else if (type == 5) { plant.src = "images/CherryBomb.gif"; } 
     else if (type == 6) { plant.src = "images/Chomper.gif"; } 
-    else if (type == 7) { plant.src = "images/TallNut.gif"; } 
+    else if (type == 7) { plant.src = "images/WallNut.gif"; } 
     else if (type == 8) { plant.src = "images/Garlic.gif"; } 
     else if (type == 9) { plant.src = "images/Torchwood.gif"; } 
     else if (type == 10) { plant.src = "images/Spikeweed.gif"; } 
