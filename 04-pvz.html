@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pvz</title>
+    <style>
+        #container {
+            width: 900px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #bg {
+            margin-left: -150px;
+            margin-top: 120px;
+            /* 修改：背景总共向下移动120像素 */
+        }
+
+        .card {
+            position: absolute;
+            top: 0px;
+            left: 0px;
+        }
+    </style>
+</head>
+
+<body ondragstart="return false;">
+    <div id="container">
+        <img id="bg" src="images/Background.jpg">
+        <img class="card" onclick="dragPlant(1)" src="plantcard/SunFlower.png">
+        <img class="card" onclick="dragPlant(2)" style="left: 100px;" src="plantcard/PeaShooter.png">
+        <img class="card" onclick="dragPlant(3)" style="left: 200px;" src="plantcard/SnowPea.png">
+        <img class="card" onclick="dragPlant(4)" style="left: 300px;" src="plantcard/Repeater.png">
+        <img class="card" onclick="dragPlant(5)" style="left: 400px;" src="plantcard/CherryBomb.png">
+        <img class="card" onclick="dragPlant(6)" style="left: 500px;" src="plantcard/Chomper.png">
+        <img class="card" onclick="dragPlant(7)" style="left: 600px;" src="plantcard/TallNut.png">
+        <img class="card" onclick="dragPlant(8)" style="left: 700px;" src="plantcard/Garlic.png">
+        <img class="card" onclick="dragPlant(9)" style="left: 800px;" src="plantcard/Torchwood.png">
+        <img class="card" onclick="dragPlant(10)" style="top: 60px;" src="plantcard/Spikeweed.png">
+        <img class="card" onclick="dragPlant(11)" style="top: 60px; left: 100px;" src="plantcard/TwinSunflower.png">
+        <img class="card" onclick="dragPlant(12)" style="top: 60px; left: 200px;" src="plantcard/SunFlowerG.png">
+        <img class="card" onclick="dragPlant(13)" style="top: 60px; left: 300px;" src="plantcard/Squash.png">
+    </div>
+    <script src="sprites.js">
+
+    </script>
+    <script>
+        var counter = 0; //定义一个全局变量counter，用于计数
+        var duration = 1000; //定义一个全局变量duration，1000个数为一个周期
+        var zombies = []; //定义一个全局变量zombies，用于存储所有的僵尸精灵
+        var zbIndex = 0; //定义一个全局变量zbIndex，用于记录当前僵尸精灵的索引
+        var plants = []; //定义一个全局变量plants，用于存储所有的植物精灵
+        var bullets = []; //定义一个全局变量bullets，用于存储所有的子弹精灵
+
+        function shoot(plant) {  //定义一个shoot函数，用于处理植物的射击事件，参数plant表示射击的植物精灵
+            for (var zombie of zombies) { //遍历zombies数组中的每个僵尸精灵
+                if (zombie.offsetLeft > plant.offsetLeft - 70 && //判断僵尸是否在植物的射程范围内
+                    zombie.route == plant.route) { //判断僵尸是否与植物在同一行
+                    bullets.push(creatdBullet(plant, bullet => {
+                        bullets = bullets.filter(item => item != bullet); //将被击中的子弹从bullets数组中移除
+                        container.removeChild(bullet); //将子弹从container元素中移除
+                    }));
+                    break; //
+                }
+
+            }
+        }
+
+        function dragPlant(type) {  //定义一个dragPlant函数，用于处理植物卡片的拖动事件
+            createPlant(type, plant => {
+                shoot(plant); //调用shoot函数，传入创建的植物精灵作为参数，处理植物的射击事件
+                plant.timer = setInterval(() => { //定义一个定时器，每隔2000毫秒调用一次shoot函数，传入当前植物精灵作为参数，处理植物的射击事件
+                    shoot(plant);
+                }, 1800) //每隔1800毫秒调用一次shoot函数，处理植物的射击事件
+                plants.push(plant);
+            }); //调用createPlant函数，创建一个新的植物精灵，参数type表示植物的类型
+        }
+        // 监听网页是否退到后台
+        document.onvisibilitychange = function () {
+            isBack = document.visibilityState != 'visible';
+        }
+        window.onload = function () {
+            setInterval(() => {
+                if (!window.isBack){
+                    addSprite(); //每隔100/8毫秒调用一次addSprite函数，添加一个新的僵尸精灵
+                    spriteStep(); //每隔100/8毫秒调用一次spriteStep函数，更新所有僵尸精灵的位置和状态
+                    onHitting(); //每隔100/8毫秒调用一次onHitting函数，处理精灵被击中的情况
+                }
+                
+            }, 100 / 8)
+        }
+            function addSprite() {  //定义一个addSprite函数，用于添加一个新的精灵
+                if (zbIndex > 20) { //当zbIndex大于等于20时，直接返回，不执行后续代码
+                    return
+                }
+                counter++; //每次调用step方法时，将counter属性加1
+                if (parseInt(counter / duration) >= zbIndex) {  //当counter除以duration的整数部分大于等于zbIndex时，说明已经到了添加下一个僵尸精灵的时间
+                    zombies.push(createZombie(zbIndex)); //调用createZombie函数创建一个新的僵尸精灵，并将其添加到zombies数组中
+                    if (zbIndex == 2) { //如果当前是第二个僵尸精灵
+                        duration = 100
+                        counter = duration * zbIndex; //将counter重置为duration乘以zbIndex，以便下一个僵尸精灵的添加时间正确计算    
+                    }
+                    if (zbIndex == 10) { //如果当前是第十个僵尸精灵
+                        duration = 2000 //将duration设置为2000，以便下一个僵尸精灵的添加时间正确计算
+                        counter = duration * zbIndex; //将counter重置为duration乘以zbIndex，以便下一个僵尸精灵的添加时间正确计算    
+                    }
+                    if (zbIndex == 11) { //如果当前是第十一个僵尸精灵
+                        duration = 100 //将duration设置为100，以便下一个僵尸精灵的添加时间正确计算
+                        counter = duration * zbIndex; //将counter重置为duration乘以zbIndex，以便下一个僵尸精灵的添加时间正确计算    
+                    }  //利用20个僵尸的资源，设计了一个僵尸精灵的添加时间表，使得游戏的节奏更加紧凑和有趣
+                    zbIndex++; //将zbIndex加1，以便创建下一个僵尸精灵
+                }
+
+
+            }
+            function spriteStep() {  //定义一个spriteStep函数，用于更新精灵的位置和状态
+                for (var zombie of zombies) { //遍历zombies数组中的每个僵尸精灵
+                    zombie.step(); //调用每个僵尸精灵的step方法，更新其位置和状态
+                }
+                for (var bullet of bullets) { //遍历bullets数组中的每个子弹精灵
+                    bullet.step(); //调用每个子弹精灵的step方法，更新其位置和状态
+                }
+            }
+            function onHitting() {  //定义一个onHitting函数，用于处理精灵被击中的情况
+                for (var bullet of bullets) { //遍历bullets数组中的每个子弹精灵
+                    if (hitZombie(bullet)){ //判断子弹是否击中僵尸
+                        bullet.src = "images/BulletHit.gif"; //如果子弹击中僵尸，将子弹的图片源更改为BulletHit.gif，显示击中效果
+
+                    }
+                }
+            }
+            function hitZombie(bullet) {  //定义一个hitZombie函数，用于判断子弹是否击中僵尸
+                for (var zombie of zombies) { //遍历zombies数组中的每个僵尸精灵
+                    if (bullet.offsetLeft - 70 > zombie.offsetLeft &&
+                        bullet.offsetLeft - 140< zombie.offsetLeft &&
+                        bullet.route == zombie.route) { //判断子弹是否在僵尸的范围内，并且与僵尸在同一行
+                        zombie.blood--; //如果子弹击中僵尸，将僵尸的血量减1
+                        if (zombie.blood == 0) {
+                            var head = creatdHead(zombie); //如果僵尸的血量为0，说明僵尸被击死了，调用creatdHead函数创建一个头部精灵，并将其赋值给变量head
+                            zombie.src = "images/ZombieLostHead.gif"; //将僵尸的图片源更改为ZombieLostHead.gif，显示僵尸被击死的效果
+                            setTimeout(() => {
+                                zombie.src = "images/ZombieDie.gif"; //设置一个定时器，1秒后将僵尸的图片源更改为ZombieDie.gif，显示僵尸死亡的效果
+                                container.removeChild(head); //将头部精灵从container元素中移除
+                            }, 1000)
+                            setTimeout(() => {
+                                zombies = zombies.filter(item => item != zombie); //将被击死的僵尸从zombies数组中移除
+                                container.removeChild(zombie); //设置一个定时器，2秒后将僵尸从container元素中移除
+                            }, 2000)
+                        } else {
+                            zombie.style.opacity = 0.7; //如果僵尸的血量不为0，说明僵尸受到了伤害，将僵尸的透明度设置为0.5，显示受伤效果
+                            setTimeout(() => {
+                                zombie.style.opacity = 1;
+                            }, 100) //设置一个定时器，1秒后将僵尸的透明度恢复为1，显示正常效果
+
+                        }
+                        return true; //返回true，表示子弹击中了一个僵尸
+                    }
+                    
+                }
+                return false; //返回false，表示子弹没有击中任何僵尸
+            }
+    </script>
+</body>
+
+</html>
