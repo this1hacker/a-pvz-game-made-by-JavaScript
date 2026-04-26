@@ -62,6 +62,16 @@
             transition: all 0.5s ease-in !important;
             opacity: 0;
         }
+         /* 【新增】卡牌价格显示样式 */
+        .card-price-tag {
+            position: absolute;
+            color: #000; /* 纯黑色 */
+            font-size: 20px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 25;
+            /* 移除所有布局属性，由 JS 控制 */
+        }
     </style>
 </head>
 
@@ -277,6 +287,9 @@
             isBack = document.visibilityState != 'visible';
         }
         window.onload = function () {
+            // 【新增】初始化卡牌价格显示
+            initCardPrices();
+
             // 【新增】确保在 DOM 加载完成后获取阳光显示元素
             sunDisplay = document.getElementById('sun-value-text');
             
@@ -296,6 +309,75 @@
                 }
 
             }, 100 / 8)
+        }
+
+        // 【新增】初始化卡牌价格函数
+        // 【新增】初始化卡牌价格函数
+        // 【新增】初始化卡牌价格函数
+        function initCardPrices() {
+            // 定义植物类型对应的价格
+            var prices = {
+                1: 50,   // SunFlower
+                2: 100,  // PeaShooter
+                3: 175,  // SnowPea
+                4: 200,  // Repeater
+                5: 150,  // CherryBomb
+                6: 150,  // Chomper
+                7: 50,   // WallNut
+                8: 50,   // Garlic
+                9: 175,  // Torchwood
+                10: 100, // Spikeweed
+                11: 125, // TwinSunflower
+                12: 50,  // SunFlowerG (假设)
+                13: 50   // Squash
+            };
+
+            var cards = document.querySelectorAll('.card');
+            cards.forEach(function(cardImg) {
+                var onclickAttr = cardImg.getAttribute('onclick');
+                if (onclickAttr) {
+                    var match = onclickAttr.match(/dragPlant\((\d+)\)/);
+                    if (match) {
+                        var type = parseInt(match[1]);
+                        var price = prices[type];
+                        
+                        if (price !== undefined) {
+                            var priceSpan = document.createElement('span');
+                            priceSpan.className = 'card-price-tag';
+                            priceSpan.innerText = price;
+                            
+                            // 【核心修改】以卡牌右下角为基准
+                            // 1. 获取卡牌当前的 top 和 left (用于辅助定位，或者直接用 right/bottom)
+                            // 由于 span 是 container 的子元素，我们可以直接设置 right 和 bottom
+                            // 但 right/bottom 是相对于 container 的。
+                            // 为了让它相对于卡牌，我们需要计算：
+                            
+                            var cardTop = parseInt(cardImg.style.top || 0);
+                            var cardLeft = parseInt(cardImg.style.left || 0);
+                            var CARD_WIDTH = 60;
+                            var CARD_HEIGHT = 120;
+                            
+                            // 计算卡牌右下角相对于 container 的坐标
+                            var cardRightEdge = cardLeft + CARD_WIDTH;
+                            var cardBottomEdge = cardTop + CARD_HEIGHT;
+                            
+                            // 目标位置：
+                            // 往上移动 50px:  Y = cardBottomEdge - 50
+                            // 往右移动 80px:  X = cardRightEdge + 80 
+                            // (注意：如果希望它在卡牌内部，比如距离右边10px，则是 cardRightEdge - 10)
+                            
+                            var finalTop = cardBottomEdge - 85;
+                            var finalLeft = cardRightEdge; // 这里严格按你说的“往右80”
+                            
+                            // 应用坐标
+                            priceSpan.style.top = finalTop + "px";
+                            priceSpan.style.left = finalLeft + "px";
+                            
+                            container.appendChild(priceSpan);
+                        }
+                    }
+                }
+            });
         }
         function addSprite() {  //定义一个addSprite函数，用于添加一个新的精灵
             if (zbIndex > 20) { //当zbIndex大于等于20时，直接返回，不执行后续代码
