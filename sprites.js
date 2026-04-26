@@ -231,6 +231,8 @@ function creatdBullet(plant, disappear){
     return bullet; 
 }
 
+// sprites.js
+
 function createZombie(id, gameover){ 
     var zombie = document.createElement("img"); 
     zombie.id = id; 
@@ -250,35 +252,39 @@ function createZombie(id, gameover){
     zombie.style.position = "absolute"; 
     zombie.route = parseInt(Math.random() * 5); 
     
-    // 【保持原样】僵尸行坐标 (150, 250...)
-    // 注意：僵尸Y坐标(150+)与植物Y坐标(210+)有垂直偏差，这是为了配合背景图
+    // 【关键修改】初始化冰冻状态属性
+    zombie.isFrozen = false;      
+    zombie.freezeTimer = 0;       
+    zombie.baseSpeed = 6;         // 记录基础速度，用于恢复
+    
+    // 【保持原样】僵尸行坐标
     zombie.style.top = [150, 250, 350, 450, 550][zombie.route] + "px"; 
     
     zombie.style.left = "850px"; 
     zombie.counter = 0; 
-    zombie.speed = 6;
+    zombie.speed = 6; // 初始移动间隔帧数
     
     zombie.step = function(){
-    zombie.counter++; 
-    if (zombie.counter < zombie.speed) {
-        return
-    }
-    zombie.counter = 0; 
+        zombie.counter++; 
+        // 注意：speed 越大，counter 需要积累越多才能移动，即速度越慢
+        if (zombie.counter < zombie.speed) {
+            return
+        }
+        zombie.counter = 0; 
         
-    // 【修复】只有当僵尸处于“行走”状态时才移动
-    // 排除包含 "Attack"、"Die"、"LostHead" 的状态
-    var isWalking = zombie.src.endsWith("Zombie.gif") && 
-                    !zombie.src.includes("Attack") && 
-                    !zombie.src.includes("Die") && 
-                    !zombie.src.includes("LostHead");
+        // 【修复】只有当僵尸处于“行走”状态时才移动
+        var isWalking = zombie.src.endsWith("Zombie.gif") && 
+                        !zombie.src.includes("Attack") && 
+                        !zombie.src.includes("Die") && 
+                        !zombie.src.includes("LostHead");
 
-    if (isWalking && zombie.offsetLeft > -200) { 
-        zombie.style.left = zombie.offsetLeft - 1 + "px"; 
-    } 
+        if (isWalking && zombie.offsetLeft > -200) { 
+            zombie.style.left = zombie.offsetLeft - 1 + "px"; 
+        } 
         
-    if (zombie.offsetLeft < -150){ 
-        if(gameover) gameover();
-    }
+        if (zombie.offsetLeft < -150){ 
+            if(gameover) gameover();
+        }
     }
     container.appendChild(zombie); 
     return zombie; 
