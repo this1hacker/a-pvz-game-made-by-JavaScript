@@ -533,14 +533,14 @@
                 currentStage = "Stage 2";
                 spawnInterval = 10000; 
                 spawnCount = 1;       
-                zombieTypes = [1, 0, 0]; 
+                zombieTypes = [5, 5, 0]; 
             }
             // 阶段 3: 60s-180s
             else if (elapsedTime < 240000) {
                 currentStage = "Stage 3";
                 spawnInterval = 2000; 
                 spawnCount = 1;
-                zombieTypes = [5, 5, 0]; 
+                zombieTypes = [3, 7, 0]; 
             }
             else if (elapsedTime < 280000) {
                 currentStage = "Stage 3";
@@ -552,7 +552,7 @@
                 currentStage = "Stage 3";
                 spawnInterval = 2000; 
                 spawnCount = 2;
-                zombieTypes = [4, 5, 1]; 
+                zombieTypes = [3, 6, 1]; 
             }
             // 阶段 4: 180s-300s
             else if (elapsedTime < 340000) {
