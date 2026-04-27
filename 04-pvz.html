@@ -131,6 +131,44 @@
         // 记录上一只僵尸生成的时间，用于控制间隔
         var lastZombieSpawnTime = 0; 
 
+        // 【新增】植物冷却时间配置 (单位: 毫秒)
+        var PLANT_COOLDOWNS = {
+            1: 5000,   // SunFlower
+            2: 5000,   // PeaShooter
+            3: 5000,   // SnowPea
+            4: 5000,   // Repeater
+            5: 30000000,  // CherryBomb (长冷却)
+            6: 75000000,   // Chomper
+            7: 30000,  // WallNut (长冷却)
+            8: 75000000,   // Garlic
+            9: 75000000,   // Torchwood
+            10: 75000000,  // Spikeweed
+            11: 10000,  // TwinSunflower
+            12: 30000, // PotatoMine (长冷却)
+            13: 300000000  // Squash (长冷却)
+        };
+        // 【新增】植物初始冷却触发配置 (0: 不触发, 1: 触发完整冷却)
+        // 如果值为 1，游戏开始时该卡牌会立即进入冷却状态，持续时间为 PLANT_COOLDOWNS 中定义的时间。
+        var INITIAL_COOLDOWN_TRIGGER = {
+            1: 0,     // SunFlower
+            2: 0,     // PeaShooter
+            3: 0,     // SnowPea
+            4: 0,     // Repeater
+            5: 1,     // CherryBomb
+            6: 1,     // Chomper
+            7: 1,     // WallNut
+            8: 1,     // Garlic
+            9: 1,     // Torchwood
+            10: 1,    // Spikeweed
+            11: 1,    // TwinSunflower
+            12: 1,    // PotatoMine (开局直接触发冷却)
+            13: 1     // Squash
+        };
+
+        // 【新增】记录每种植物最后使用的时间戳 { type: timestamp }
+        var lastPlantUseTime = {};
+
+
         // 【新增】全局植物价格表
         var PLANT_PRICES = {
             1: 50,   // SunFlower
@@ -205,56 +243,83 @@
             setTimeout(function () {
                 var randomTop = Math.floor(Math.random() * (500 - 150) + 150); // 落在草坪区域
                 sun.style.top = randomTop + "px";
+                
+                // 【新增】阳光落地后，停留 2.5 秒，如果未被点击，则自动收集
+                // 注意：CSS transition 设置了 3s，这里设 2.5s 可以在它完全停稳前开始判断，或者设为 3500ms 等完全停稳后
+                setTimeout(function() {
+                    // 只有当阳光还存在且没有被收集时，才执行自动收集
+                    if (sun.parentNode && !sun.classList.contains('sun-collecting')) {
+                        // 模拟点击事件，直接调用 onclick 逻辑，或者复用下面的收集逻辑
+                        // 为了代码复用，我们直接触发 sun.onclick()，但需要构造一个简单的事件对象
+                        // 更稳妥的方式是直接执行收集逻辑的代码块
+                        
+                        // 这里我们直接调用收集逻辑的核心部分，避免事件冒泡等问题
+                        autoCollectSun(sun);
+                    }
+                }, 3500); // 3.5秒后自动收集 (给玩家一点反应时间，同时也包含下落时间)
+
             }, 50);
 
             // 点击事件：收集阳光
             sun.onclick = function (e) {
                 e.stopPropagation(); // 防止事件冒泡
-                sunValue += 25;
-                updateSunDisplay();
-
-                // 【修复】计算飞向新目标的坐标
-                // 新目标位置: top: calc(50% - 240px); left: calc(50% - 450px);
-
-                var halfWidth = window.innerWidth / 2;
-                var halfHeight = window.innerHeight / 2;
-
-                // 目标相对于视口 (Viewport) 的坐标
-                // 对应 CSS: left: calc(50% - 450px)
-                var targetViewportLeft = halfWidth - 450 + 10; // +10 微调居中
-
-                // 对应 CSS: top: calc(50% - 240px)
-                var targetViewportTop = halfHeight - 240 + 10; // +10 微调居中
-
-                // 获取 container 相对于视口的位置
-                var containerRect = container.getBoundingClientRect();
-
-                // 计算目标相对于 container 的坐标
-                var finalLeft = targetViewportLeft - containerRect.left;
-                var finalTop = targetViewportTop - containerRect.top;
-
-                sun.classList.add('sun-collecting');
-                sun.style.left = finalLeft + "px";
-                sun.style.top = finalTop + "px";
-
-                // 动画结束后移除元素
-                setTimeout(function () {
-                    if (sun.parentNode) {
-                        sun.parentNode.removeChild(sun);
-                    }
-                }, 500);
+                // 执行收集逻辑
+                collectSunLogic(sun);
             };
-
-            // 如果 8 秒内没被点击，自动消失
+            
+            // 如果 8 秒内没被点击，且没有触发自动收集（理论上上面的定时器会处理，这里是双重保险或用于手动消失逻辑）
+            // 由于上面加了自动收集，这个定时器主要用于清理那些可能因为bug没被收集的阳光，或者你可以调整时间
             setTimeout(function () {
                 if (sun.parentNode && !sun.classList.contains('sun-collecting')) {
-                    sun.style.opacity = "0";
-                    sun.style.transition = "opacity 0.5s";
-                    setTimeout(function () {
-                        if (sun.parentNode) sun.parentNode.removeChild(sun);
-                    }, 500);
+                     // 如果到了8秒还没被收集（无论是手动还是自动），强制消失
+                     // 但通常上面的 3.5s 自动收集会先生效。
+                     // 如果你想让它在自动收集前一直存在直到8秒，可以保留此逻辑作为最终清理
+                     sun.style.opacity = "0";
+                     sun.style.transition = "opacity 0.5s";
+                     setTimeout(function () {
+                         if (sun.parentNode) sun.parentNode.removeChild(sun);
+                     }, 500);
                 }
             }, 8000);
+        }
+
+        // 【新增】提取出的核心收集逻辑，供手动点击和自动收集共用
+        function collectSunLogic(sunElement) {
+            if (!sunElement || sunElement.classList.contains('sun-collecting')) return;
+
+            sunValue += 25;
+            updateSunDisplay();
+
+            // 【修复】计算飞向新目标的坐标
+            var halfWidth = window.innerWidth / 2;
+            var halfHeight = window.innerHeight / 2;
+
+            // 目标相对于视口 (Viewport) 的坐标
+            var targetViewportLeft = halfWidth - 450 + 10; 
+            var targetViewportTop = halfHeight - 240 + 10; 
+
+            // 获取 container 相对于视口的位置
+            var containerRect = container.getBoundingClientRect();
+
+            // 计算目标相对于 container 的坐标
+            var finalLeft = targetViewportLeft - containerRect.left;
+            var finalTop = targetViewportTop - containerRect.top;
+
+            sunElement.classList.add('sun-collecting');
+            sunElement.style.left = finalLeft + "px";
+            sunElement.style.top = finalTop + "px";
+
+            // 动画结束后移除元素
+            setTimeout(function () {
+                if (sunElement.parentNode) {
+                    sunElement.parentNode.removeChild(sunElement);
+                }
+            }, 500);
+        }
+
+        // 【新增】自动收集调用函数
+        function autoCollectSun(sunElement) {
+            collectSunLogic(sunElement);
         }
 
         // 【新增】启动自然阳光掉落定时器
@@ -292,16 +357,39 @@
             }
         }
 
-         // 【修改】dragPlant 函数，移除阳光扣除，改为在放置成功时扣除
+        // 【修改】dragPlant 函数
+        // 【修改】dragPlant 函数
         function dragPlant(type) {  
             // 1. 如果铲子处于激活状态，禁止种植
             if (isShovelActive) {
                 return; 
             }
 
-            // 2. 直接创建植物预览，阳光扣除逻辑移至 createPlant 内部的成功放置分支
+            // 2. 检查冷却时间
+            var now = Date.now();
+            var lastTime = lastPlantUseTime[type] || 0;
+            var cooldown = PLANT_COOLDOWNS[type] || 0;
+
+            if (now - lastTime < cooldown) {
+                // 仍在冷却中，直接返回
+                return; 
+            }
+
+            // 3. 检查阳光是否充足 (预检查，避免无效操作，但不启动冷却)
+            var price = PLANT_PRICES[type];
+            if (typeof sunValue !== 'undefined' && sunValue < price) {
+                console.log("阳光不足，无法选择该植物！需要: " + price);
+                return; 
+            }
+
+            // 【重要修改】此处不再记录 lastPlantUseTime，而是等到植物真正放置成功后再记录
+
+            // 4. 创建植物预览
             createPlant(type, plant => {
                 
+                // 【核心修改】只有当回调被执行时，说明植物已成功放置到网格上，此时才开始冷却
+                lastPlantUseTime[type] = Date.now();
+
                 // 【新增】如果是土豆地雷，在放置成功后开始倒计时
                 if (type == 12) {
                     setTimeout(function() {
@@ -310,7 +398,7 @@
                             plant.src = "images/PotatoMine.gif";
                             plant.isReady = true;
                         }
-                    }, 20000); // 【修改】这里从 3000 改为 20000，即 20 秒
+                    }, 20000); 
                 } else {
                     // 其他植物的射击逻辑
                     shoot(plant); 
@@ -340,6 +428,23 @@
             if (typeof initShovelInteraction === 'function') {
                 initShovelInteraction();
             }
+
+            // 【核心新增】初始化卡牌初始冷却状态
+            var now = Date.now();
+            for (var type in PLANT_COOLDOWNS) {
+                // 检查是否需要在开局触发冷却
+                if (INITIAL_COOLDOWN_TRIGGER[type] === 1) {
+                    // 如果触发，将“最后使用时间”设为“现在”，这样冷却进度从 0% 开始
+                    lastPlantUseTime[type] = now;
+                } else {
+                    // 如果不触发，将“最后使用时间”设为“很久以前”，确保 now - lastTime > cooldown
+                    // 减去冷却时间再减 1秒，保证绝对可用
+                    lastPlantUseTime[type] = now - PLANT_COOLDOWNS[type] - 1000;
+                }
+            }
+
+            // 【新增】启动卡牌冷却视觉更新定时器 (每100毫秒更新一次)
+            setInterval(updateCardVisuals, 100);
 
             setInterval(() => {
                 if (!window.isBack) {
@@ -407,40 +512,64 @@
             var timeSinceLastSpawn = now - lastZombieSpawnTime; 
 
             // --- 【阶段配置】 ---
-            var currentStage = "";
-            var spawnInterval = 0; 
-            var spawnCount = 1;    
-            var zombieTypes = [];  
+            var currentStage = ""; // 当前阶段名称
+            var spawnInterval = 0;  // 生成间隔
+            var spawnCount = 1;    // 每次生成的僵尸数量
+            var zombieTypes = [];  // 生成僵尸的类型
 
             // 定义最终阶段结束的时间点 (例如 300秒 = 300000毫秒)
             // 当时间超过这个值，我们就认为“生成完了”
             var FINAL_STAGE_END_TIME = 300000; 
 
             // 阶段 1: 0-30s
-            if (elapsedTime < 30000) {
+            if (elapsedTime < 60000) {
                 currentStage = "Stage 1";
-                spawnInterval = 10000; 
+                spawnInterval = 20000; 
                 spawnCount = 1;
                 zombieTypes = [1, 0, 0]; 
             }
             // 阶段 2: 30s-60s
-            else if (elapsedTime < 60000) {
+            else if (elapsedTime < 180000) {
                 currentStage = "Stage 2";
-                spawnInterval = 8000; 
-                spawnCount = 2;       
+                spawnInterval = 10000; 
+                spawnCount = 1;       
                 zombieTypes = [1, 0, 0]; 
             }
             // 阶段 3: 60s-180s
-            else if (elapsedTime < 180000) {
+            else if (elapsedTime < 240000) {
                 currentStage = "Stage 3";
-                spawnInterval = 4500; 
-                spawnCount = 2;
+                spawnInterval = 2000; 
+                spawnCount = 1;
                 zombieTypes = [5, 5, 0]; 
             }
-            // 阶段 4: 180s-300s
+            else if (elapsedTime < 280000) {
+                currentStage = "Stage 3";
+                spawnInterval = 100000; 
+                spawnCount = 1;
+                zombieTypes = [5, 5, 0]; 
+            }
             else if (elapsedTime < 300000) {
+                currentStage = "Stage 3";
+                spawnInterval = 2000; 
+                spawnCount = 2;
+                zombieTypes = [4, 5, 1]; 
+            }
+            // 阶段 4: 180s-300s
+            else if (elapsedTime < 340000) {
                 currentStage = "Stage 4";
-                spawnInterval = 3500; 
+                spawnInterval = 2000; 
+                spawnCount = 2;
+                zombieTypes = [4, 3.5, 2.5]; 
+            }
+            else if (elapsedTime < 380000) {
+                currentStage = "Stage 4";
+                spawnInterval = 50000; 
+                spawnCount = 1;
+                zombieTypes = [4, 3.5, 2.5]; 
+            }
+            else if (elapsedTime < 420000) {
+                currentStage = "Stage 4";
+                spawnInterval = 2000; 
                 spawnCount = 2;
                 zombieTypes = [4, 3.5, 2.5]; 
             }
@@ -452,13 +581,13 @@
                 // 方案 B: 300s-360s 继续高强度生成，然后停止
                 
                 // 这里采用方案 B：最后再冲刺 60 秒
-                if (elapsedTime < 360000) { 
+                if (elapsedTime < 450000) { 
                     currentStage = "Stage 5: FINAL RUSH";
-                    spawnInterval = 1200; 
+                    spawnInterval = 1000; 
                     spawnCount = 1; 
                     zombieTypes = [1, 4, 5]; 
                 } else {
-                    // 时间超过 360秒，标记生成完毕
+                    // 时间超过 450秒，标记生成完毕
                     isSpawnFinished = true;
                     console.log("所有僵尸已生成完毕，等待清理战场...");
                     return; // 本次调用不再生成
@@ -929,6 +1058,58 @@
             }
         }
 
+        // 【新增】更新卡牌冷却视觉效果
+        // 【新增】更新卡牌冷却视觉效果
+        // 【新增】更新卡牌冷却视觉效果
+        function updateCardVisuals() {
+            var cards = document.querySelectorAll('.card');
+            var now = Date.now();
+
+            cards.forEach(function(cardImg) {
+                var onclickAttr = cardImg.getAttribute('onclick');
+                if (onclickAttr) {
+                    var match = onclickAttr.match(/dragPlant\((\d+)\)/);
+                    if (match) {
+                        var type = parseInt(match[1]);
+                        var lastTime = lastPlantUseTime[type] || 0;
+                        var cooldown = PLANT_COOLDOWNS[type] || 0;
+                        var price = PLANT_PRICES[type] || 0;
+                        
+                        var timePassed = now - lastTime;
+                        var isCoolingDown = timePassed < cooldown;
+                        
+                        // 【核心修改】检查阳光是否不足
+                        var isSunNotEnough = (typeof sunValue !== 'undefined' && sunValue < price);
+
+                        // --- 状态判断逻辑 ---
+                        
+                        // 情况 1: 阳光不足 -> 强制保持最暗/不可用状态，忽略冷却进度
+                        if (isSunNotEnough) {
+                            cardImg.style.filter = "brightness(0.3) grayscale(100%)"; // 最暗且全灰
+                            cardImg.style.cursor = "not-allowed";
+                        } 
+                        // 情况 2: 阳光充足，但仍在冷却中 -> 显示逐渐变亮的效果
+                        else if (isCoolingDown) {
+                            var progress = timePassed / cooldown;
+                            
+                            // 映射进度到亮度: 0.3 (最暗) -> 1.0 (正常)
+                            var brightness = 0.3 + (0.7 * progress);
+                            
+                            // 映射进度到灰度: 100% (全灰) -> 0% (正常)
+                            var grayscale = 100 - (100 * progress);
+
+                            cardImg.style.filter = `brightness(${brightness}) grayscale(${grayscale}%)`;
+                            cardImg.style.cursor = "not-allowed"; // 冷却中仍不可点击
+                        } 
+                        // 情况 3: 阳光充足，且冷却完毕 -> 恢复正常状态
+                        else {
+                            cardImg.style.filter = "none"; // 恢复原样
+                            cardImg.style.cursor = "pointer";
+                        }
+                    }
+                }
+            });
+        }
     </script>
 </body>
 
