@@ -253,28 +253,56 @@ function createPlant(type, onclick){
     return plant; 
 }
 
-function creatdBullet(plant, disappear){
+function creatdBullet(plant, disappear, isFire){
     var bullet = document.createElement("img");
     bullet.type = plant.type; 
     bullet.route = plant.route; // 继承植物的行号
     
+    // 【新增】标记子弹来源：如果是火炬树桩发出的，标记为 true
+    if (plant.type == 9) {
+        bullet.fromTorchwood = true;
+    } else {
+        bullet.fromTorchwood = false;
+    }
+
+    // 【修改】增加 isFire 参数判断，或者直接根据 type 9 的特殊逻辑
     if (bullet.type == 2) { 
         bullet.src = "images/Bullet.gif"; 
     } else if (bullet.type == 3) {
         bullet.src = "images/SnowBullet.gif"; 
     } else if (bullet.type == 4) {
         bullet.src = "images/Bullet.gif"; 
+    } 
+    else if (bullet.type == 9) {
+        // 如果是火炬树桩，且指定了 isFire 为 true，则发射火焰子弹
+        if (isFire) {
+            bullet.src = "images/PB10.gif"; 
+            // 标记这是一个火焰子弹，以便 hitZombie 识别伤害（可选，也可以通过 type 判断）
+            bullet.isFireBullet = true;
+        } else {
+            // 否则发射普通子弹
+            bullet.src = "images/Bullet.gif";
+            bullet.isFireBullet = false;
+        }
     }
     
     bullet.style.position = "absolute";
     bullet.style.left = plant.offsetLeft + 30 + "px"; 
     bullet.style.top = plant.offsetTop + "px"; 
     
+     // 【核心修复】优化 step 函数，处理击中后的状态
     bullet.step = function(){ 
-        if (bullet.src.endsWith("Bullet.gif") && 
+        // 1. 如果已经是击中状态（BulletHit.gif），则不再移动
+        if (bullet.src.endsWith("BulletHit.gif")) {
+            return; // 停止移动，停留在原地
+        }
+
+        // 2. 正常移动逻辑
+        if ((bullet.src.endsWith("Bullet.gif") || bullet.src.endsWith("SnowBullet.gif") || bullet.src.endsWith("PB10.gif")) && 
             bullet.offsetLeft < 1000) { 
             bullet.style.left = bullet.offsetLeft + 5 + "px"; 
         } else { 
+            // 3. 超出边界或异常状态，调用消失回调
             if(disappear) disappear(bullet); 
         }
     };

@@ -141,7 +141,7 @@
             6: 75000000,   // Chomper
             7: 30000,  // WallNut (长冷却)
             8: 75000000,   // Garlic
-            9: 75000000,   // Torchwood
+            9: 7500,   // Torchwood
             10: 75000000,  // Spikeweed
             11: 10000,  // TwinSunflower
             12: 30000, // PotatoMine (长冷却)
@@ -215,7 +215,7 @@
         }
 
         // 【新增】阳光系统变量
-        var sunValue = 50;
+        var sunValue = 50000;
         var sunDisplay = null; // 初始化为 null
         var container = document.getElementById('container');
 
@@ -332,24 +332,39 @@
                 if (zombie.offsetLeft > plant.offsetLeft - 70 && //判断僵尸是否在植物的射程范围内
                     zombie.route == plant.route) { //判断僵尸是否与植物在同一行
 
-                    // 发射第一颗子弹
-                    bullets.push(creatdBullet(plant, bullet => {
-                        bullets = bullets.filter(item => item != bullet);
-                        container.removeChild(bullet);
-                    }));
+                    // 【修改】如果是火炬树桩 (Type 9)，发射两种子弹
+                    if (plant.type == 9) {
+                        // 1. 发射普通子弹
+                        bullets.push(creatdBullet(plant, bullet => {
+                            bullets = bullets.filter(item => item != bullet);
+                            container.removeChild(bullet);
+                        }, false)); // false 表示普通子弹
 
-                    // 如果是双发射手 (type 4)，发射第二颗子弹
-                    if (plant.type == 4) {
-                        // 使用 setTimeout 稍微延迟发射第二颗子弹，产生连发效果
-                        setTimeout(() => {
-                            // 检查植物是否还存在，防止植物在延迟期间被吃掉导致报错
-                            if (plant.parentNode) {
-                                bullets.push(creatdBullet(plant, bullet => {
-                                    bullets = bullets.filter(item => item != bullet);
-                                    container.removeChild(bullet);
-                                }));
-                            }
-                        }, 150); // 延迟150毫秒发射第二颗
+                        // 2. 发射火焰子弹 (稍微延迟一点点，避免完全重叠，或者同时发射)
+                        bullets.push(creatdBullet(plant, bullet => {
+                            bullets = bullets.filter(item => item != bullet);
+                            container.removeChild(bullet);
+                        }, true)); // true 表示火焰子弹
+                    } 
+                    // 其他植物正常逻辑
+                    else {
+                        // 发射第一颗子弹
+                        bullets.push(creatdBullet(plant, bullet => {
+                            bullets = bullets.filter(item => item != bullet);
+                            container.removeChild(bullet);
+                        }));
+
+                        // 如果是双发射手 (type 4)，发射第二颗子弹
+                        if (plant.type == 4) {
+                            setTimeout(() => {
+                                if (plant.parentNode) {
+                                    bullets.push(creatdBullet(plant, bullet => {
+                                        bullets = bullets.filter(item => item != bullet);
+                                        container.removeChild(bullet);
+                                    }));
+                                }
+                            }, 150);
+                        }
                     }
 
                     break;
@@ -357,7 +372,6 @@
             }
         }
 
-        // 【修改】dragPlant 函数
         // 【修改】dragPlant 函数
         function dragPlant(type) {  
             // 1. 如果铲子处于激活状态，禁止种植
@@ -399,7 +413,9 @@
                             plant.isReady = true;
                         }
                     }, 20000); 
-                } else {
+                } 
+                // 【修改】排除火炬树桩 (Type 9)，使其不发射子弹
+                else if (type != 9) {
                     // 其他植物的射击逻辑
                     shoot(plant); 
                     plant.timer = setInterval(() => { 
@@ -653,18 +669,152 @@
         // 04-pvz.html <script>
 
         function onHitting() {
-            // 1.先处理所有子弹的飞行和碰撞检测
+            // 【新增】1. 处理子弹被火炬树桩吸收并转化的逻辑
             for (var i = bullets.length - 1; i >= 0; i--) {
                 var bullet = bullets[i];
+                
+                // 如果子弹已经处于击中状态，跳过
+                if (bullet.src.endsWith("BulletHit.gif")) {
+                    continue;
+                }
+
+                // 【关键修复】如果子弹是火炬树桩自己发射的，直接跳过吸收检测
+                if (bullet.fromTorchwood) {
+                    continue;
+                }
+
+                // 遍历所有植物，检查子弹是否撞到了火炬树桩
+                for (var j = plants.length - 1; j >= 0; j--) {
+                    var plant = plants[j];
+                    
+                    // 只检测火炬树桩 (Type 9)
+                    if (plant.type == 9) {
+                        // 判定条件：同行且位置重叠
+                        if (bullet.route == plant.route && 
+                            bullet.offsetLeft + 20 >= plant.offsetLeft && 
+                            bullet.offsetLeft < plant.offsetLeft + 60) {
+                            
+                            // --- 核心转化逻辑 ---
+                            
+                            // 1. 记录原子弹类型
+                            var originalType = bullet.type;
+                            
+                            // 2. 从数组和DOM移除原子弹
+                            bullets.splice(i, 1);
+                            if (bullet.parentNode) {
+                                container.removeChild(bullet);
+                            }
+
+                            // 3. 根据原子弹类型生成新子弹
+                            // 注意：这里调用 creatdBullet 时，传入的 plant 是火炬树桩
+                            // creatdBullet 内部会自动设置 newBullet.fromTorchwood = true
+                            
+                            if (originalType == 3) {
+                                // 【情况A】寒冰豌豆 (Type 3) -> 转化为 普通子弹 (伤害1, 无冰冻)
+                                var newBullet = document.createElement("img");
+                                newBullet.type = 2; 
+                                newBullet.route = plant.route;
+                                newBullet.src = "images/Bullet.gif";
+                                newBullet.isFireBullet = false;
+                                newBullet.fromTorchwood = true; 
+                                
+                                newBullet.style.position = "absolute";
+                                // 【修改】从 +40 改为 +10，向左移动 30 像素
+                                newBullet.style.left = (plant.offsetLeft + 10) + "px"; 
+                                newBullet.style.top = plant.offsetTop + "px";
+                                
+                                // 【修复】复制 sprites.js 中的 step 逻辑，增加击中停止判断
+                                newBullet.step = function(){ 
+                                    // 1. 如果已经是击中状态，停止移动
+                                    if (newBullet.src.endsWith("BulletHit.gif")) {
+                                        return; 
+                                    }
+                                    // 2. 正常移动
+                                    if (newBullet.offsetLeft < 1000) { 
+                                        newBullet.style.left = newBullet.offsetLeft + 5 + "px"; 
+                                    } else { 
+                                        if(newBullet.parentNode) container.removeChild(newBullet);
+                                        var idx = bullets.indexOf(newBullet);
+                                        if(idx > -1) bullets.splice(idx, 1);
+                                    }
+                                };
+                                
+                                container.appendChild(newBullet);
+                                bullets.push(newBullet);
+
+                            } else if (originalType == 2 || originalType == 4) {
+                                // 【情况B】普通/双发豌豆 (Type 2, 4) -> 转化为 火焰子弹 (伤害2)
+                                var newBullet = document.createElement("img");
+                                newBullet.type = 9; 
+                                newBullet.route = plant.route;
+                                newBullet.src = "images/PB10.gif";
+                                newBullet.isFireBullet = true;
+                                newBullet.fromTorchwood = true; 
+                                
+                                newBullet.style.position = "absolute";
+                                // 【修改】从 +40 改为 +10，向左移动 30 像素
+                                newBullet.style.left = (plant.offsetLeft + 10) + "px"; 
+                                newBullet.style.top = plant.offsetTop + "px";
+                                
+                                // 【修复】复制 sprites.js 中的 step 逻辑，增加击中停止判断
+                                newBullet.step = function(){ 
+                                    // 1. 如果已经是击中状态，停止移动
+                                    if (newBullet.src.endsWith("BulletHit.gif")) {
+                                        return; 
+                                    }
+                                    // 2. 正常移动
+                                    if (newBullet.offsetLeft < 1000) { 
+                                        newBullet.style.left = newBullet.offsetLeft + 5 + "px"; 
+                                    } else { 
+                                        if(newBullet.parentNode) container.removeChild(newBullet);
+                                        var idx = bullets.indexOf(newBullet);
+                                        if(idx > -1) bullets.splice(idx, 1);
+                                    }
+                                };
+                                
+                                container.appendChild(newBullet);
+                                bullets.push(newBullet);
+                            }
+                            
+                            // 跳出植物循环，继续处理下一个子弹
+                            break; 
+                        }
+                    }
+                }
+            }
+
+           // 2. 先处理所有子弹的飞行和碰撞检测 (原有的击中僵尸逻辑)
+            for (var i = bullets.length - 1; i >= 0; i--) {
+                var bullet = bullets[i];
+                
+                // 如果已经是击中状态，跳过检测，等待 step 函数或定时器处理销毁
                 if (bullet.src.endsWith("BulletHit.gif")) {
                     continue;
                 }
 
                 if (hitZombie(bullet)) {
+                    // 击中僵尸，变为击中效果图
                     bullet.src = "images/BulletHit.gif";
+                    
+                    // 【关键】击中后，设置一个短暂的定时器自动移除该子弹
+                    // 这里将时间从 200ms 缩短为 100ms，使效果更干脆
+                    (function(currentBullet) {
+                        setTimeout(function() {
+                            if (currentBullet.parentNode) {
+                                container.removeChild(currentBullet);
+                            }
+                            // 从数组中安全移除
+                            var idx = bullets.indexOf(currentBullet);
+                            if (idx > -1) {
+                                bullets.splice(idx, 1);
+                            }
+                        }, 100); // 【修改】这里改为 100 毫秒，如果需要更快可以改为 50 或 0
+                    })(bullet);
                 }
             }
 
+            // ... (后续原有的土豆地雷和僵尸吃植物逻辑保持不变) ...
+            
             // 2. 【终极修复】土豆地雷爆炸逻辑 - 分离特效与本体
             for (var pIndex = plants.length - 1; pIndex >= 0; pIndex--) {
                 var plant = plants[pIndex];
@@ -977,8 +1127,20 @@
                     bullet.offsetLeft - 140 < zombie.offsetLeft &&
                     bullet.route == zombie.route) {
                     
-                    // 击中僵尸，扣血
-                    zombie.blood--;
+                    // 【修改】根据子弹是否是火焰子弹决定伤害
+                    // 如果 bullet.isFireBullet 为 true，伤害为 2，否则为 1
+                    var damage = bullet.isFireBullet ? 2 : 1;
+                    zombie.blood -= damage;
+
+                    // --- 【新增】火焰子弹解冻逻辑 ---
+                    // 如果这是火焰子弹，且僵尸当前处于冰冻状态，则解除冰冻
+                    if (bullet.isFireBullet && zombie.isFrozen) {
+                        zombie.isFrozen = false;       // 标记为非冰冻
+                        zombie.freezeTimer = 0;        // 重置冰冻计时器
+                        zombie.speed = zombie.baseSpeed; // 恢复基础移动速度
+                        zombie.style.filter = "none";    // 移除蓝色冰冻滤镜效果
+                    }
+                    // ----------------------------------
                     
                     // --- 【修改】处理掉帽子/路障逻辑 ---
                     if (zombie.blood <= 10 && zombie.status != 0 && zombie.status != 1 && zombie.status != 2) {
@@ -989,17 +1151,11 @@
                     // ----------------------------------
 
                     // --- 【修复】处理冰冻豌豆效果 ---
-                    if (bullet.type == 3 && zombie.blood > 0) {
-                        // 1. 设置冰冻标记
+                    // 只有雪豆(type 3)才应该造成冰冻，且火焰子弹不应该冰冻
+                    // 注意：因为上面已经处理了解冻，所以这里即使 type==3，如果是火焰子弹也不会再冻结（因为 isFireBullet 为 true 时上面已经 return 或者逻辑互斥，但为了保险，我们保留 !bullet.isFireBullet判断）
+                    if (bullet.type == 3 && zombie.blood > 0 && !bullet.isFireBullet) {
                         zombie.isFrozen = true;
-                        
-                        // 2. 重置冰冻计时器 
-                        // 游戏循环约 80fps (100/8 ms)。3秒 = 3000ms。
-                        // 3000 / 12.5 = 240 帧。为了保险，设为 250。
                         zombie.freezeTimer = 250; 
-                        
-                        // 3. 立即应用减速视觉效果
-                        // speed 从 6 变为 12，意味着移动频率减半，实现减速
                         zombie.speed = 12; 
                         zombie.style.filter = "brightness(0.6) hue-rotate(180deg) saturate(1.5)";
                     }
